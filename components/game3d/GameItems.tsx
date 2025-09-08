@@ -51,7 +51,6 @@ const Auto: React.FC = () => (
         </mesh>
         <mesh castShadow position={[0, 1.2, -0.8]}>
             <boxGeometry args={[2.2, 1, 2.5]} />
-            {/* FIX: Corrected the syntax for props. `roughness` and `metalness` should be separate props. */}
             <meshStandardMaterial color="#222222" roughness={0.2} metalness={0.8} />
         </mesh>
     </group>

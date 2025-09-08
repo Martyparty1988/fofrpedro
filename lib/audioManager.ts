@@ -1,16 +1,29 @@
-
 // This is a mock implementation since Tone.js is not available in this environment.
 // In a real project, you would import Tone.js and create real synths.
+import { hlasky, HlaskaCategory } from '../constants/hlasky';
 
 class AudioManager {
     private volume: number = 0.5;
     private context: AudioContext | null = null;
-
-    private playSound(freq: number, type: OscillatorType, duration: number) {
+    private musicNodes: {
+        bassOsc?: OscillatorNode,
+        bassGain?: GainNode,
+        arpOsc?: OscillatorNode,
+        arpGain?: GainNode,
+        kick?: AudioBufferSourceNode,
+    } = {};
+    private musicInterval: number | null = null;
+    private isMusicPlaying: boolean = false;
+    
+    private initContext() {
         if (!this.context) {
             this.context = new (window.AudioContext || (window as any).webkitAudioContext)();
         }
-        if (this.volume === 0) return;
+    }
+
+    private playSound(freq: number, type: OscillatorType, duration: number) {
+        this.initContext();
+        if (!this.context || this.volume === 0) return;
         
         try {
             const oscillator = this.context.createOscillator();
@@ -31,10 +44,105 @@ class AudioManager {
             console.error("Audio playback failed", e);
         }
     }
+    
+    startMusic() {
+        if (this.isMusicPlaying) return;
+        this.initContext();
+        if (!this.context) return;
+        this.isMusicPlaying = true;
+        
+        const musicVolume = this.volume * 0.3;
+        const now = this.context.currentTime;
+        
+        // Arpeggio
+        const arpGain = this.context.createGain();
+        arpGain.gain.setValueAtTime(musicVolume, now);
+        arpGain.connect(this.context.destination);
+        const arpOsc = this.context.createOscillator();
+        arpOsc.type = 'sawtooth';
+        arpOsc.connect(arpGain);
+        arpOsc.start(now);
+        this.musicNodes.arpGain = arpGain;
+        this.musicNodes.arpOsc = arpOsc;
+
+        const arpNotes = [220, 329.63, 440, 523.25]; // A2, E4, A4, C5
+        let arpStep = 0;
+        
+        // Bass
+        const bassGain = this.context.createGain();
+        bassGain.gain.setValueAtTime(musicVolume * 1.2, now);
+        bassGain.connect(this.context.destination);
+        const bassOsc = this.context.createOscillator();
+        bassOsc.type = 'sine';
+        bassOsc.connect(bassGain);
+        bassOsc.start(now);
+        this.musicNodes.bassGain = bassGain;
+        this.musicNodes.bassOsc = bassOsc;
+        const bassNotes = [55, 55, 65.41, 48.99]; // A1, A1, C2, G#1
+        let bassStep = 0;
+
+
+        const tick = () => {
+            const time = this.context!.currentTime;
+            // Arpeggio pattern
+            this.musicNodes.arpOsc?.frequency.setValueAtTime(arpNotes[arpStep % arpNotes.length], time);
+            arpStep++;
+            // Bass pattern
+            if (arpStep % 4 === 1) {
+                this.musicNodes.bassOsc?.frequency.setValueAtTime(bassNotes[bassStep % bassNotes.length], time);
+                bassStep++;
+            }
+        };
+
+        this.musicInterval = window.setInterval(tick, 150);
+    }
+    
+    stopMusic() {
+        if (!this.isMusicPlaying || !this.context) return;
+        this.isMusicPlaying = false;
+        
+        const now = this.context.currentTime;
+        const fadeOutTime = 0.5;
+        
+        if (this.musicNodes.arpGain) this.musicNodes.arpGain.gain.exponentialRampToValueAtTime(0.0001, now + fadeOutTime);
+        if (this.musicNodes.bassGain) this.musicNodes.bassGain.gain.exponentialRampToValueAtTime(0.0001, now + fadeOutTime);
+        
+        if(this.musicNodes.arpOsc) this.musicNodes.arpOsc.stop(now + fadeOutTime);
+        if(this.musicNodes.bassOsc) this.musicNodes.bassOsc.stop(now + fadeOutTime);
+
+        if (this.musicInterval) {
+            clearInterval(this.musicInterval);
+            this.musicInterval = null;
+        }
+        this.musicNodes = {};
+    }
 
     setVolume(volume: number) {
         this.volume = Math.max(0, Math.min(1, volume));
+        if (this.isMusicPlaying && this.context) {
+             const musicVolume = this.volume * 0.3;
+             const now = this.context.currentTime;
+             if(this.musicNodes.arpGain) this.musicNodes.arpGain.gain.linearRampToValueAtTime(musicVolume, now + 0.1);
+             if(this.musicNodes.bassGain) this.musicNodes.bassGain.gain.linearRampToValueAtTime(musicVolume * 1.2, now + 0.1);
+        }
     }
+
+    private playRandomHlaska(category: HlaskaCategory) {
+        const lines = hlasky[category];
+        if (lines && lines.length > 0) {
+            const line = lines[Math.floor(Math.random() * lines.length)];
+            console.log(`[HLASKA] ${category.toUpperCase()}: ${line}`);
+        }
+    }
+
+    playStartHlaska() { this.playRandomHlaska('start'); }
+    playJumpHlaska() { this.playRandomHlaska('jump'); }
+    playFrontflipHlaska() { this.playRandomHlaska('frontflip'); }
+    playSlideHlaska() { this.playRandomHlaska('slide'); }
+    playCollisionHlaska() { this.playRandomHlaska('collision'); }
+    playGameOverHlaska() { this.playRandomHlaska('gameover'); }
+    playPowerUpHlaska() { this.playRandomHlaska('powerup'); }
+
 
     playCollectSound() {
         this.playSound(880, 'triangle', 0.1);
@@ -54,6 +162,34 @@ class AudioManager {
 
     playFlipSound() {
         this.playSound(600, 'sine', 0.2);
+    }
+
+    playSlideSound() {
+        this.initContext();
+        if (!this.context || this.volume === 0) return;
+        
+        try {
+            const oscillator = this.context.createOscillator();
+            const gainNode = this.context.createGain();
+
+            oscillator.connect(gainNode);
+            gainNode.connect(this.context.destination);
+            
+            const now = this.context.currentTime;
+            const duration = 0.3;
+
+            gainNode.gain.setValueAtTime(this.volume * 0.4, now);
+            gainNode.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(400, now);
+            oscillator.frequency.exponentialRampToValueAtTime(100, now + duration);
+            
+            oscillator.start(now);
+            oscillator.stop(now + duration);
+        } catch(e) {
+            console.error("Audio playback failed", e);
+        }
     }
 
     playGameOverSound() {

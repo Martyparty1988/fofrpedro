@@ -22,7 +22,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ settings, setSet
     };
     
     return (
-        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center glassmorphism p-4 fade-in">
+        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center glassmorphism p-4 screen-enter">
             <h2 className="text-5xl font-black text-white neon-text mb-8">SETTINGS</h2>
             
             <div className="w-full max-w-md flex flex-col gap-6">

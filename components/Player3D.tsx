@@ -1,8 +1,8 @@
 import React, { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { PlayerState, Skin, PowerUpState, GameObjectType, Settings } from '../../types';
-import { PlayerModel } from '../../constants/assets';
+import { PlayerState, Skin, PowerUpState, GameObjectType, Settings } from '../types';
+import { PlayerModel } from '../constants/assets';
 
 interface Player3DProps {
     playerState: PlayerState;
@@ -28,6 +28,10 @@ export const Player3D: React.FC<Player3DProps> = ({ playerState, skin, powerUps,
     // This ref controls the model's rotation and scale, independent of its position
     const playerModelRef = useRef<THREE.Group>(null!);
     const shieldRef = useRef<THREE.Mesh>(null!);
+    const speedTrailRef = useRef<THREE.Mesh>(null!);
+    const invincibilityLightRef = useRef<THREE.PointLight>(null!);
+    const speedLightRef = useRef<THREE.PointLight>(null!);
+
 
     const isInvincible = useMemo(() => powerUps.some(p => p.type === GameObjectType.Invincibility), [powerUps]);
     const isSpeedBoosted = useMemo(() => powerUps.some(p => p.type === GameObjectType.SpeedBoost), [powerUps]);
@@ -76,10 +80,28 @@ export const Player3D: React.FC<Player3DProps> = ({ playerState, skin, powerUps,
         }
         
         // Shield pulse animation
-        if (isInvincible && shieldRef.current) {
-            const scale = 1 + Math.sin(clock.elapsedTime * 5) * 0.1;
+        if (isInvincible && shieldRef.current && invincibilityLightRef.current) {
+            const pulse = Math.sin(clock.elapsedTime * 8);
+            const scale = 1.1 + pulse * 0.15;
             shieldRef.current.scale.set(scale, scale, scale);
-            (shieldRef.current.material as THREE.MeshStandardMaterial).opacity = 0.2 + Math.sin(clock.elapsedTime * 5) * 0.1;
+            const opacity = 0.4 + pulse * 0.2;
+            (shieldRef.current.material as THREE.MeshStandardMaterial).opacity = opacity;
+
+            // Light pulse
+            invincibilityLightRef.current.intensity = 20 + pulse * 10;
+        }
+        
+        // Speed trail animation
+        if (isSpeedBoosted && speedTrailRef.current && speedLightRef.current) {
+             const pulse = Math.sin(clock.elapsedTime * 10);
+             const scale = 1 + pulse * 0.1;
+             speedTrailRef.current.scale.z = scale;
+             speedTrailRef.current.scale.x = 1.2 - (scale - 1);
+             speedTrailRef.current.scale.y = 1.2 - (scale - 1);
+             (speedTrailRef.current.material as THREE.MeshStandardMaterial).opacity = 0.4 + pulse * 0.2;
+
+             // Light flicker
+             speedLightRef.current.intensity = 25 + Math.random() * 10;
         }
     });
     
@@ -90,17 +112,37 @@ export const Player3D: React.FC<Player3DProps> = ({ playerState, skin, powerUps,
                  <PlayerModel scale={1} colors={skin.colors} />
             </group>
 
+            {/* Lights for powerups */}
+            <pointLight ref={invincibilityLightRef} position={[0, 1, 0]} color="#00ffff" distance={20} intensity={0} visible={isInvincible} />
+            <pointLight ref={speedLightRef} position={[0, 1, 0]} color="#fde047" distance={20} intensity={0} visible={isSpeedBoosted} />
+
             {/* Power-up effects are attached to the main group */}
             {isInvincible && (
-                <mesh ref={shieldRef}>
-                    <sphereGeometry args={[1.5, 32, 32]} />
-                    <meshStandardMaterial color="#00ffff" transparent opacity={0.3} emissive="#00ffff" emissiveIntensity={2} />
+                <mesh ref={shieldRef} >
+                    <sphereGeometry args={[1.6, 32, 32]} />
+                    <meshStandardMaterial 
+                        color="#00ffff" 
+                        transparent 
+                        opacity={0.5} 
+                        emissive="#00ffff" 
+                        emissiveIntensity={3} 
+                        side={THREE.FrontSide}
+                        depthWrite={false}
+                    />
                 </mesh>
             )}
              {isSpeedBoosted && (
-                <mesh position={[0, 0, 1]}>
-                    <coneGeometry args={[0.3, 2, 8]} />
-                    <meshStandardMaterial color="#ffff00" transparent opacity={0.5} emissive="#ffff00" emissiveIntensity={3} />
+                <mesh ref={speedTrailRef} position={[0, 0.5, 2.5]} rotation={[Math.PI / 2, 0, 0]}>
+                    <coneGeometry args={[0.5, 5, 8]} />
+                     <meshStandardMaterial 
+                        color="#fde047" 
+                        transparent 
+                        opacity={0.6} 
+                        emissive="#fde047" 
+                        emissiveIntensity={4} 
+                        side={THREE.DoubleSide}
+                        depthWrite={false}
+                    />
                 </mesh>
             )}
         </group>

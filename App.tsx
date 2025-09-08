@@ -10,6 +10,7 @@ import { LeaderboardScreen } from './components/LeaderboardScreen';
 import { SkinsScreen } from './components/SkinsScreen';
 import { getSettings, saveSettings, getSelectedSkin, saveSelectedSkin, getLeaderboard, saveLeaderboard } from './lib/storageManager';
 import { SKINS } from './constants/assets';
+import { audioManager } from './lib/audioManager';
 
 const App: React.FC = () => {
     const [gameStatus, setGameStatus] = useState<GameStatus>(GameStatus.MainMenu);
@@ -31,11 +32,20 @@ const App: React.FC = () => {
         saveLeaderboard(leaderboard);
     }, [leaderboard]);
     
-    const handleStartGame = useCallback(() => setGameStatus(GameStatus.Playing), []);
+    const handleStartGame = useCallback(() => {
+        setGameStatus(GameStatus.Playing);
+        audioManager.startMusic();
+    }, []);
     const handlePauseGame = useCallback(() => setGameStatus(GameStatus.Paused), []);
     const handleResumeGame = useCallback(() => setGameStatus(GameStatus.Playing), []);
-    const handleRestart = useCallback(() => setGameStatus(GameStatus.Playing), []);
-    const handleGoToMenu = useCallback(() => setGameStatus(GameStatus.MainMenu), []);
+    const handleRestart = useCallback(() => {
+        setGameStatus(GameStatus.Playing)
+        audioManager.startMusic();
+    }, []);
+    const handleGoToMenu = useCallback(() => {
+        setGameStatus(GameStatus.MainMenu);
+        audioManager.stopMusic();
+    }, []);
     const handleOpenSettings = useCallback(() => setGameStatus(GameStatus.Settings), []);
     const handleOpenLeaderboard = useCallback(() => setGameStatus(GameStatus.Leaderboard), []);
     const handleOpenSkins = useCallback(() => setGameStatus(GameStatus.Skins), []);
@@ -47,6 +57,7 @@ const App: React.FC = () => {
             localStorage.setItem('highScore', score.toString());
         }
         setGameStatus(GameStatus.GameOver);
+        audioManager.stopMusic();
     }, [highScore]);
     
     const addLeaderboardEntry = (name: string) => {

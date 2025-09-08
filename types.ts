@@ -50,6 +50,13 @@ export interface PlayerState {
     slideCooldown: number;
 }
 
+export interface GameEffect {
+    id: number;
+    type: 'lajna-collect' | 'cevko-collect' | 'powerup-collect' | 'damage';
+    position: [number, number, number];
+    createdAt: number;
+}
+
 export interface GameState {
     status: 'playing' | 'paused' | 'gameOver';
     score: number;
@@ -57,6 +64,7 @@ export interface GameState {
     player: PlayerState;
     gameObjects: GameObject[];
     activePowerUps: PowerUpState[];
+    effects: GameEffect[];
 }
 
 export interface Skin {

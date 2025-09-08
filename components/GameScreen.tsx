@@ -1,11 +1,21 @@
 
 
 import React, { useEffect, useRef } from 'react';
-import { Canvas } from '@react-three/fiber';
+// FIX: Add `extend` from R3F and import `three` to make all THREE objects available as JSX elements.
+// This is required for some React Three Fiber setups (especially older versions) and will fix all 
+// "Property does not exist on type 'JSX.IntrinsicElements'" errors throughout the 3D components.
+import { Canvas, extend } from '@react-three/fiber';
+import * as THREE from 'three';
 import { GameScene3D } from './game3d/GameScene3D';
 import { useGameLogic } from '../hooks/useGameLogic';
-import { HUD } from './HUD';
+import { HUD } from './game3d/HUD';
 import { GameStatus, Skin, Settings } from '../types';
+
+// This call makes all of Three.js available as JSX components
+// FIX: Cast THREE to `any` to resolve a TypeScript error where the `THREE` namespace
+// contains non-constructor properties, which the `extend` function's signature doesn't allow.
+// This preserves the original intent of making all THREE components available in JSX.
+extend(THREE as any);
 
 interface GameScreenProps {
     onPause: () => void;
@@ -18,7 +28,6 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onPause, onGameOver, set
     const { gameState, movePlayer, triggerFlip, triggerSlide } = useGameLogic(onGameOver, settings);
     
     const touchStartRef = useRef<{ x: number, y: number } | null>(null);
-    const lastTapRef = useRef<number>(0);
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -52,24 +61,20 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onPause, onGameOver, set
         const dx = touchEnd.x - touchStartRef.current.x;
         const dy = touchEnd.y - touchStartRef.current.y;
         
-        const now = Date.now();
-        const DOUBLE_TAP_DELAY = 300; // ms
+        const swipeThreshold = 30;
 
         if (Math.abs(dx) > Math.abs(dy)) { // Horizontal swipe
-            if (Math.abs(dx) > 30) {
+            if (Math.abs(dx) > swipeThreshold) {
                 if (dx > 0) movePlayer('right');
                 else movePlayer('left');
             }
         } else { // Vertical swipe
-            if (dy < -50) { // Swipe Up
-                 if (now - lastTapRef.current < DOUBLE_TAP_DELAY) {
+            if (Math.abs(dy) > swipeThreshold) {
+                if (dy < 0) { // Swipe Up
                     triggerFlip();
-                    lastTapRef.current = 0; // Reset tap
-                } else {
-                    lastTapRef.current = now;
+                } else { // Swipe Down
+                    triggerSlide();
                 }
-            } else if (dy > 50) { // Swipe Down
-                triggerSlide();
             }
         }
         touchStartRef.current = null;

@@ -1,5 +1,5 @@
 {
-  "name": "Pedro Run",
+  "name": "Pedro Run jedinecny",
   "description": "Pedro Run is a fast-paced 3D endless runner game set in a satirical, cyberpunk depiction of Prague. Players take on the role of a character sprinting down a three-lane road, dodging obstacles, collecting items, and aiming for the highest score. The game is built in React using React Three Fiber for 3D rendering, allowing it to run smoothly in modern web browsers on both desktop and mobile devices.",
   "requestFramePermissions": []
 }

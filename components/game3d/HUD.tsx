@@ -1,8 +1,7 @@
-
-
 import React from 'react';
-import { GameState, GameObjectType } from '../types';
-import { HeartIcon, SpeedIcon, ShieldIcon, FlipIcon, PauseIcon, SlideIcon } from '../constants/assets';
+import { GameState, GameObjectType } from '../../types';
+import { HeartIcon, SpeedIcon, ShieldIcon, FlipIcon, PauseIcon, SlideIcon } from '../../constants/assets';
+import { POWERUP_DURATION, FLIP_COOLDOWN, FLIP_DURATION, SLIDE_COOLDOWN, SLIDE_DURATION } from '../../constants/gameConstants';
 
 interface HUDProps {
     gameState: GameState;
@@ -11,8 +10,7 @@ interface HUDProps {
 
 const PowerUpIndicator: React.FC<{ type: GameObjectType.SpeedBoost | GameObjectType.Invincibility, timeLeft: number }> = ({ type, timeLeft }) => {
     const Icon = type === GameObjectType.SpeedBoost ? SpeedIcon : ShieldIcon;
-    const duration = 300; // Corresponds to POWERUP_DURATION in useGameLogic
-    const progress = (timeLeft / duration) * 100;
+    const progress = (timeLeft / POWERUP_DURATION) * 100;
 
     return (
         <div className="flex items-center gap-2 glassmorphism p-2 rounded-lg">
@@ -25,8 +23,7 @@ const PowerUpIndicator: React.FC<{ type: GameObjectType.SpeedBoost | GameObjectT
 };
 
 const FlipIndicator: React.FC<{ cooldown: number }> = ({ cooldown }) => {
-    // FIX: Corrected maxCooldown to match the game logic (FLIP_COOLDOWN + FLIP_DURATION = 54 + 30 = 84).
-    const maxCooldown = 84; 
+    const maxCooldown = FLIP_COOLDOWN + FLIP_DURATION; 
     const isReady = cooldown === 0;
     const progress = isReady ? 100 : ((maxCooldown - cooldown) / maxCooldown) * 100;
     
@@ -41,7 +38,7 @@ const FlipIndicator: React.FC<{ cooldown: number }> = ({ cooldown }) => {
 };
 
 const SlideIndicator: React.FC<{ cooldown: number }> = ({ cooldown }) => {
-    const maxCooldown = 60; // SLIDE_DURATION + SLIDE_COOLDOWN
+    const maxCooldown = SLIDE_COOLDOWN + SLIDE_DURATION;
     const isReady = cooldown === 0;
     const progress = isReady ? 100 : ((maxCooldown - cooldown) / maxCooldown) * 100;
     

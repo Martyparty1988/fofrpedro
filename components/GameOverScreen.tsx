@@ -27,7 +27,7 @@ export const GameOverScreen: React.FC<GameOverScreenProps> = ({ score, highScore
     };
     
     return (
-        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center glassmorphism p-4 fade-in">
+        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center glassmorphism p-4 screen-enter">
             <h2 className="text-6xl md:text-8xl font-black text-red-500 neon-text mb-4">GAME OVER</h2>
             <p className="text-lg text-cyan-300 neon-blue-text mb-8 text-center italic">"{getRandomQuote()}"</p>
 
