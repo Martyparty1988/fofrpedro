@@ -1,6 +1,5 @@
 // This is a mock implementation since Tone.js is not available in this environment.
 // In a real project, you would import Tone.js and create real synths.
-import { hlasky, HlaskaCategory } from '../constants/hlasky';
 
 class AudioManager {
     private volume: number = 0.5;
@@ -83,7 +82,8 @@ class AudioManager {
 
 
         const tick = () => {
-            const time = this.context!.currentTime;
+            if(!this.context) return;
+            const time = this.context.currentTime;
             // Arpeggio pattern
             this.musicNodes.arpOsc?.frequency.setValueAtTime(arpNotes[arpStep % arpNotes.length], time);
             arpStep++;
@@ -126,23 +126,6 @@ class AudioManager {
              if(this.musicNodes.bassGain) this.musicNodes.bassGain.gain.linearRampToValueAtTime(musicVolume * 1.2, now + 0.1);
         }
     }
-
-    private playRandomHlaska(category: HlaskaCategory) {
-        const lines = hlasky[category];
-        if (lines && lines.length > 0) {
-            const line = lines[Math.floor(Math.random() * lines.length)];
-            console.log(`[HLASKA] ${category.toUpperCase()}: ${line}`);
-        }
-    }
-
-    playStartHlaska() { this.playRandomHlaska('start'); }
-    playJumpHlaska() { this.playRandomHlaska('jump'); }
-    playFrontflipHlaska() { this.playRandomHlaska('frontflip'); }
-    playSlideHlaska() { this.playRandomHlaska('slide'); }
-    playCollisionHlaska() { this.playRandomHlaska('collision'); }
-    playGameOverHlaska() { this.playRandomHlaska('gameover'); }
-    playPowerUpHlaska() { this.playRandomHlaska('powerup'); }
-
 
     playCollectSound() {
         this.playSound(880, 'triangle', 0.1);

@@ -1,21 +1,10 @@
 
-
 import React, { useEffect, useRef } from 'react';
-// FIX: Add `extend` from R3F and import `three` to make all THREE objects available as JSX elements.
-// This is required for some React Three Fiber setups (especially older versions) and will fix all 
-// "Property does not exist on type 'JSX.IntrinsicElements'" errors throughout the 3D components.
-import { Canvas, extend } from '@react-three/fiber';
-import * as THREE from 'three';
+import { Canvas } from '@react-three/fiber';
 import { GameScene3D } from './game3d/GameScene3D';
 import { useGameLogic } from '../hooks/useGameLogic';
 import { HUD } from './game3d/HUD';
-import { GameStatus, Skin, Settings } from '../types';
-
-// This call makes all of Three.js available as JSX components
-// FIX: Cast THREE to `any` to resolve a TypeScript error where the `THREE` namespace
-// contains non-constructor properties, which the `extend` function's signature doesn't allow.
-// This preserves the original intent of making all THREE components available in JSX.
-extend(THREE as any);
+import { Skin, Settings } from '../types';
 
 interface GameScreenProps {
     onPause: () => void;

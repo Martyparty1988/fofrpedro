@@ -53,12 +53,17 @@ export const PlayerModel: React.FC<PlayerModelProps> = ({ colors, ...props }) =>
             {/* Body */}
             <mesh castShadow position={[0, 0.9, 0]}>
                 <capsuleGeometry args={[0.4, 1, 4, 16]} />
-                <meshStandardMaterial color={colors.body} />
+                <meshStandardMaterial color={colors.body} roughness={0.4} metalness={0.2} />
             </mesh>
             {/* Head */}
             <mesh castShadow position={[0, 1.8, 0]}>
-                <sphereGeometry args={[0.4, 16, 16]} />
+                <sphereGeometry args={[0.4, 32, 32]} />
                 <meshStandardMaterial color="#f0e68c" />
+            </mesh>
+             {/* Cyber Visor */}
+            <mesh position={[0, 1.8, 0.25]}>
+                <torusGeometry args={[0.3, 0.08, 8, 32, Math.PI * 1.5]} />
+                <meshStandardMaterial color={colors.hat} emissive={colors.hat} emissiveIntensity={4} toneMapped={false} />
             </mesh>
              {/* Hat */}
             <mesh castShadow position={[0, 2.1, 0]} rotation={[0,0,0.2]}>
@@ -66,8 +71,44 @@ export const PlayerModel: React.FC<PlayerModelProps> = ({ colors, ...props }) =>
                 <meshStandardMaterial color={colors.hat} />
             </mesh>
              {/* Backpack */}
-            <mesh castShadow position={[0, 1, -0.4]}>
-                <boxGeometry args={[0.7, 0.9, 0.4]} />
+            <group position={[0, 1, -0.4]}>
+                <mesh castShadow>
+                    <boxGeometry args={[0.7, 0.9, 0.4]} />
+                    <meshStandardMaterial color={colors.backpack} />
+                </mesh>
+                <mesh position={[0, 0.3, 0.25]}>
+                    <cylinderGeometry args={[0.1, 0.1, 0.1, 16]} />
+                    <meshStandardMaterial color="#7dd3fc" emissive="#7dd3fc" emissiveIntensity={3} toneMapped={false}/>
+                </mesh>
+            </group>
+            
+            {/* Arms */}
+            <mesh castShadow position={[-0.5, 1.2, 0]} rotation={[0, 0, 0.5]}>
+                <capsuleGeometry args={[0.1, 0.6, 4, 8]} />
+                <meshStandardMaterial color={colors.body} />
+            </mesh>
+            <mesh castShadow position={[0.5, 1.2, 0]} rotation={[0, 0, -0.5]}>
+                <capsuleGeometry args={[0.1, 0.6, 4, 8]} />
+                <meshStandardMaterial color={colors.body} />
+            </mesh>
+
+            {/* Legs */}
+            <mesh castShadow position={[-0.2, 0.4, 0]}>
+                <capsuleGeometry args={[0.15, 0.8, 4, 8]} />
+                <meshStandardMaterial color={colors.body} />
+            </mesh>
+            <mesh castShadow position={[0.2, 0.4, 0]}>
+                <capsuleGeometry args={[0.15, 0.8, 4, 8]} />
+                <meshStandardMaterial color={colors.body} />
+            </mesh>
+            
+            {/* Feet */}
+             <mesh position={[-0.2, 0.05, 0.1]}>
+                <boxGeometry args={[0.3, 0.1, 0.4]} />
+                <meshStandardMaterial color={colors.backpack} />
+            </mesh>
+             <mesh position={[0.2, 0.05, 0.1]}>
+                <boxGeometry args={[0.3, 0.1, 0.4]} />
                 <meshStandardMaterial color={colors.backpack} />
             </mesh>
         </group>

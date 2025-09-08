@@ -52,9 +52,10 @@ export interface PlayerState {
 
 export interface GameEffect {
     id: number;
-    type: 'lajna-collect' | 'cevko-collect' | 'powerup-collect' | 'damage';
+    type: 'lajna-collect' | 'cevko-collect' | 'powerup-collect' | 'damage' | 'speech-bubble';
     position: [number, number, number];
     createdAt: number;
+    text?: string;
 }
 
 export interface GameState {

@@ -34,6 +34,13 @@ export const hlasky = {
     "Tohle nakopnutí bych prodal i svýmu dealerovi.",
     "Power-up: mám v kapse víc než ministerstvo na celý rok."
   ],
+  "pedroultimate": [
+    "Jsem rychlej jak průjem po žloutence!",
+    "Takhle se frčí do parlamentu!",
+    "Pedro na Hrad! Sníh pro všechny!",
+    "Nepotřebuju imunitu, mám rychlost!",
+    "Vláda padá, Pedro stoupá!"
+  ],
   "easteregg": [
     "Bonus: našel jsi starou lžíci – dneska jedeš VIP.",
     "Pedro unlockuje squat boss fight: hlavní závislák roku.",

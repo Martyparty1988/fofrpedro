@@ -22,6 +22,55 @@ import {
     SPAWN_INTERVAL,
     LANE_WIDTH,
 } from '../constants/gameConstants';
+import { hlasky, HlaskaCategory } from '../constants/hlasky';
+
+
+// --- New Spawning Pattern Definitions ---
+
+// A pattern is a description of what to spawn in each lane.
+// `null` means the lane is available for collectibles.
+type ObstaclePattern = (GameObjectType | null)[];
+
+interface PatternDefinition {
+    pattern: ObstaclePattern;
+    minScore: number;
+    weight: number; // How likely is this pattern to be chosen relative to others
+}
+
+// Patterns become available as the player's score increases.
+const PATTERNS: PatternDefinition[] = [
+    // Score 0+ (Easy)
+    { pattern: [GameObjectType.Policajt, null, null], minScore: 0, weight: 10 },
+    { pattern: [null, GameObjectType.Policajt, null], minScore: 0, weight: 10 },
+    { pattern: [null, null, GameObjectType.Policajt], minScore: 0, weight: 10 },
+
+    // Score 2000+
+    { pattern: [GameObjectType.Auto, null, null], minScore: 2000, weight: 8 },
+    { pattern: [null, GameObjectType.Auto, null], minScore: 2000, weight: 8 },
+    { pattern: [null, null, GameObjectType.Auto], minScore: 2000, weight: 8 },
+
+    // Score 5000+ (Medium)
+    { pattern: [GameObjectType.Policajt, GameObjectType.Policajt, null], minScore: 5000, weight: 5 },
+    { pattern: [null, GameObjectType.Policajt, GameObjectType.Policajt], minScore: 5000, weight: 5 },
+    
+    // Score 7000+
+    { pattern: [GameObjectType.Policajt, null, GameObjectType.Policajt], minScore: 7000, weight: 4 },
+    
+    // Score 10000+ (Hard)
+    { pattern: [GameObjectType.Auto, null, GameObjectType.Policajt], minScore: 10000, weight: 3 },
+    { pattern: [GameObjectType.Policajt, null, GameObjectType.Auto], minScore: 10000, weight: 3 },
+    
+    // Score 15000+
+    { pattern: [GameObjectType.Barikada, null, null], minScore: 15000, weight: 5 }, // A single barricade
+    
+    // Score 20000+
+    { pattern: [GameObjectType.Auto, GameObjectType.Auto, null], minScore: 20000, weight: 2 },
+    { pattern: [GameObjectType.Policajt, GameObjectType.Auto, GameObjectType.Policajt], minScore: 22000, weight: 1 },
+
+    // Score 25000+ (Expert) - The Wall!
+    { pattern: [GameObjectType.Barikada, GameObjectType.Barikada, GameObjectType.Barikada], minScore: 25000, weight: 2},
+];
+
 
 function createInitialState(): GameState {
     return {
@@ -49,14 +98,50 @@ export const useGameLogic = (onGameOver: (score: number) => void, settings: Sett
     const gameLoopRef = useRef<number | null>(null);
     const lastTimeRef = useRef<number>(0);
     const distanceSinceLastSpawn = useRef(0);
+    const lastUsedHlasky = useRef<string[]>([]);
+    const scoreMilestone = useRef(10000);
+
+    const addSpeechBubble = useCallback((state: GameState, category: HlaskaCategory): GameState => {
+        // Prevent spamming bubbles
+        if (state.effects.some(e => e.type === 'speech-bubble')) {
+            return state;
+        }
+
+        const lines = hlasky[category];
+        if (!lines || lines.length === 0) return state;
+
+        // Filter out recently used lines to avoid repetition
+        const availableLines = lines.filter(line => !lastUsedHlasky.current.includes(line));
+        const linesToUse = availableLines.length > 5 ? availableLines : lines; // Use filtered list if it's large enough
+        
+        const text = linesToUse[Math.floor(Math.random() * linesToUse.length)];
+
+        // Update recently used list
+        lastUsedHlasky.current.push(text);
+        if (lastUsedHlasky.current.length > 5) { // Keep history of last 5 quotes
+            lastUsedHlasky.current.shift();
+        }
+
+        const newEffect: GameEffect = {
+            id: Date.now() + Math.random(),
+            type: 'speech-bubble',
+            position: [state.player.lane * LANE_WIDTH, 3.5, 0], // Lowered position for better visibility
+            createdAt: Date.now(),
+            text: text,
+        };
+        
+        return { ...state, effects: [...state.effects, newEffect] };
+    }, []);
 
     useEffect(() => {
-        audioManager.playStartHlaska();
-    }, []);
+        setGameState(prev => addSpeechBubble(prev, 'start'));
+    }, [addSpeechBubble]);
 
     const resetGame = useCallback(() => {
         setGameState(createInitialState());
         distanceSinceLastSpawn.current = 0;
+        lastUsedHlasky.current = [];
+        scoreMilestone.current = 10000;
     }, []);
 
     const pauseGame = useCallback(() => {
@@ -85,32 +170,32 @@ export const useGameLogic = (onGameOver: (score: number) => void, settings: Sett
     const triggerFlip = useCallback(() => {
         if (gameState.status !== 'playing' || gameState.player.isFlipping || gameState.player.isSliding || gameState.player.flipCooldown > 0) return;
         
-        if (settings.reducedMotion) {
-            audioManager.playJumpHlaska();
-        } else {
-            audioManager.playFrontflipHlaska();
-        }
         audioManager.playFlipSound();
-        setGameState(prev => ({
-            ...prev,
-            player: { ...prev.player, isFlipping: true, flipProgress: 0, flipCooldown: FLIP_COOLDOWN + FLIP_DURATION }
-        }));
-    }, [gameState.status, gameState.player.flipCooldown, gameState.player.isFlipping, gameState.player.isSliding, settings.reducedMotion]);
+        setGameState(prev => {
+            let newState = {
+                ...prev,
+                player: { ...prev.player, isFlipping: true, flipProgress: 0, flipCooldown: FLIP_COOLDOWN + FLIP_DURATION }
+            };
+            const category = settings.reducedMotion ? 'jump' : 'frontflip';
+            return addSpeechBubble(newState, category);
+        });
+    }, [gameState.status, gameState.player, settings.reducedMotion, addSpeechBubble]);
     
     const triggerSlide = useCallback(() => {
         if (gameState.status !== 'playing' || gameState.player.isSliding || gameState.player.isFlipping || gameState.player.slideCooldown > 0) return;
         
-        audioManager.playSlideHlaska();
         audioManager.playSlideSound();
-        setGameState(prev => ({
-            ...prev,
-            player: { ...prev.player, isSliding: true, slideProgress: 0, slideCooldown: SLIDE_COOLDOWN + SLIDE_DURATION }
-        }));
-    }, [gameState.status, gameState.player.isSliding, gameState.player.isFlipping, gameState.player.slideCooldown]);
+        setGameState(prev => {
+            let newState = {
+                ...prev,
+                player: { ...prev.player, isSliding: true, slideProgress: 0, slideCooldown: SLIDE_COOLDOWN + SLIDE_DURATION }
+            };
+            return addSpeechBubble(newState, 'slide');
+        });
+    }, [gameState.status, gameState.player, addSpeechBubble]);
 
 
     const spawnGameObjects = (state: GameState): GameState => {
-
         if (distanceSinceLastSpawn.current < SPAWN_INTERVAL) {
             return state;
         }
@@ -118,46 +203,74 @@ export const useGameLogic = (onGameOver: (score: number) => void, settings: Sett
 
         const newObjects: GameObject[] = [];
         const lanes: Lane[] = [Lane.Left, Lane.Middle, Lane.Right];
-        const occupiedLanes = new Set<Lane>();
+        const availableLanesForCollectibles: Lane[] = [...lanes];
 
-        // Spawn one obstacle
-        const obstacleType = [GameObjectType.Policajt, GameObjectType.Auto, GameObjectType.Barikada][Math.floor(Math.random() * 3)];
-        const obstacleLane = lanes[Math.floor(Math.random() * 3)];
-        const obstacleDef = OBJECT_DEFINITIONS[obstacleType];
-        newObjects.push({
-            id: Date.now() + Math.random(),
-            type: obstacleType,
-            lane: obstacleLane,
-            position: [obstacleLane * LANE_WIDTH, obstacleDef.height / 2, Z_SPAWN_POSITION],
-            ...obstacleDef
-        });
-        occupiedLanes.add(obstacleLane);
-        if (obstacleType === GameObjectType.Barikada) {
-            occupiedLanes.add(Lane.Left).add(Lane.Middle).add(Lane.Right);
+        // --- 1. Select a pattern based on score ---
+        const eligiblePatterns = PATTERNS.filter(p => state.score >= p.minScore);
+        const totalWeight = eligiblePatterns.reduce((sum, p) => sum + p.weight, 0);
+        let randomWeight = Math.random() * totalWeight;
+        const chosenPatternDef = eligiblePatterns.find(p => {
+            randomWeight -= p.weight;
+            return randomWeight <= 0;
+        }) || eligiblePatterns[eligiblePatterns.length - 1]; // Fallback to last pattern
+
+        // --- 2. Shuffle pattern and spawn obstacles ---
+        const chosenPattern = [...chosenPatternDef.pattern]; // Create a mutable copy
+        // Fisher-Yates shuffle for variety
+        for (let i = chosenPattern.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [chosenPattern[i], chosenPattern[j]] = [chosenPattern[j], chosenPattern[i]];
+        }
+        
+        // Handle Barikada special rule: it prevents collectibles from spawning nearby
+        const hasBarikada = chosenPattern.some(type => type === GameObjectType.Barikada);
+        if (hasBarikada) {
+            availableLanesForCollectibles.length = 0;
         }
 
-        // Spawn collectibles/powerups in remaining lanes
-        const availableLanes = lanes.filter(l => !occupiedLanes.has(l));
-        const numCollectibles = Math.floor(Math.random() * (availableLanes.length + 1));
-        
+        chosenPattern.forEach((type, index) => {
+            if (type !== null) {
+                const lane = lanes[index];
+                const def = OBJECT_DEFINITIONS[type];
+                newObjects.push({
+                    id: Date.now() + Math.random(),
+                    type,
+                    lane,
+                    position: [lane * LANE_WIDTH, def.height / 2, Z_SPAWN_POSITION],
+                    ...def,
+                });
+
+                // If not a Barikada wave, mark this lane as occupied for collectibles
+                if (!hasBarikada) {
+                    const laneIndex = availableLanesForCollectibles.indexOf(lane);
+                    if (laneIndex > -1) {
+                        availableLanesForCollectibles.splice(laneIndex, 1);
+                    }
+                }
+            }
+        });
+
+        // --- 3. Spawn collectibles/powerups in remaining empty lanes ---
+        const numCollectibles = Math.floor(Math.random() * (availableLanesForCollectibles.length + 1));
+        const shuffledCollectibleLanes = availableLanesForCollectibles.sort(() => 0.5 - Math.random());
+
         for (let i = 0; i < numCollectibles; i++) {
-            const collectibleLaneIndex = Math.floor(Math.random() * availableLanes.length);
-            const collectibleLane = availableLanes.splice(collectibleLaneIndex, 1)[0];
+            const lane = shuffledCollectibleLanes[i];
             
             const rand = Math.random();
-            let type: GameObjectType;
-            if (rand < 0.7) type = GameObjectType.Lajna;
-            else if (rand < 0.85) type = GameObjectType.Cevko;
-            else if (rand < 0.95) type = GameObjectType.SpeedBoost;
-            else type = GameObjectType.Invincibility;
+            let collectibleType: GameObjectType;
+            if (rand < 0.7) collectibleType = GameObjectType.Lajna;
+            else if (rand < 0.85) collectibleType = GameObjectType.Cevko;
+            else if (rand < 0.95) collectibleType = GameObjectType.SpeedBoost;
+            else collectibleType = GameObjectType.Invincibility;
             
-            const def = OBJECT_DEFINITIONS[type];
+            const def = OBJECT_DEFINITIONS[collectibleType];
             newObjects.push({
                 id: Date.now() + Math.random(),
-                type,
-                lane: collectibleLane,
-                position: [collectibleLane * LANE_WIDTH, 1, Z_SPAWN_POSITION],
-                ...def
+                type: collectibleType,
+                lane,
+                position: [lane * LANE_WIDTH, 1, Z_SPAWN_POSITION],
+                ...def,
             });
         }
         
@@ -196,8 +309,8 @@ export const useGameLogic = (onGameOver: (score: number) => void, settings: Sett
                         break;
                     case GameObjectType.SpeedBoost:
                     case GameObjectType.Invincibility:
-                        audioManager.playPowerUpHlaska();
                         audioManager.playPowerUpSound();
+                        newState = addSpeechBubble(newState, 'powerup');
                         newState.activePowerUps = newState.activePowerUps.filter(p => p.type !== obj.type);
                         newState.activePowerUps.push({ type: obj.type, timeLeft: POWERUP_DURATION });
                         newEffects.push({ id: obj.id, type: 'powerup-collect', position: obj.position, createdAt: Date.now() });
@@ -209,8 +322,8 @@ export const useGameLogic = (onGameOver: (score: number) => void, settings: Sett
                         } else if (newState.player.isSliding || isInvincible) {
                             shouldKeep = true;
                         } else {
-                            audioManager.playCollisionHlaska();
                             audioManager.playDamageSound();
+                            newState = addSpeechBubble(newState, 'collision');
                             if(settings.haptics && navigator.vibrate) navigator.vibrate(200);
                             newState.player.health -= 1;
                             newEffects.push({ id: obj.id, type: 'damage', position: [playerPos.x, playerPos.y, playerPos.z], createdAt: Date.now() });
@@ -251,7 +364,7 @@ export const useGameLogic = (onGameOver: (score: number) => void, settings: Sett
 
             if (newState.player.health <= 0) {
                 newState.status = 'gameOver';
-                audioManager.playGameOverHlaska();
+                newState = addSpeechBubble(newState, 'gameover');
                 audioManager.playGameOverSound();
                 onGameOver(Math.floor(newState.score));
                 return newState;
@@ -265,7 +378,10 @@ export const useGameLogic = (onGameOver: (score: number) => void, settings: Sett
                 .filter(p => p.timeLeft > 0);
             
             // Cleanup old effects
-            newState.effects = newState.effects.filter(effect => now - effect.createdAt < EFFECT_LIFESPAN);
+            newState.effects = newState.effects.filter(effect => {
+                const lifespan = effect.type === 'speech-bubble' ? 3000 : EFFECT_LIFESPAN;
+                return now - effect.createdAt < lifespan;
+            });
 
 
             // Flip logic
@@ -296,6 +412,12 @@ export const useGameLogic = (onGameOver: (score: number) => void, settings: Sett
             const scoreMultiplier = newState.player.isFlipping ? FLIP_SCORE_MULTIPLIER : 1;
             newState.score += deltaTime * currentSpeed * scoreMultiplier;
 
+            // Check for score milestone for "ultimate" quote
+            if (newState.score >= scoreMilestone.current) {
+                newState = addSpeechBubble(newState, 'pedroultimate');
+                scoreMilestone.current += 10000; // Set next milestone
+            }
+
             const distanceMoved = currentSpeed * deltaTime;
             distanceSinceLastSpawn.current += distanceMoved;
             
@@ -312,7 +434,7 @@ export const useGameLogic = (onGameOver: (score: number) => void, settings: Sett
         });
 
         gameLoopRef.current = requestAnimationFrame(gameLoop);
-    }, [onGameOver, settings.haptics]);
+    }, [onGameOver, settings.haptics, addSpeechBubble]);
 
     useEffect(() => {
         if (gameState.status === 'playing') {
