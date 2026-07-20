@@ -10,7 +10,7 @@ interface HUDProps {
 
 const PowerUpIndicator: React.FC<{ type: GameObjectType.SpeedBoost | GameObjectType.Invincibility, timeLeft: number }> = ({ type, timeLeft }) => {
     const Icon = type === GameObjectType.SpeedBoost ? SpeedIcon : ShieldIcon;
-    const progress = (timeLeft / POWERUP_DURATION) * 100;
+    const progress = Math.max(0, Math.min(100, (timeLeft / POWERUP_DURATION) * 100));
 
     return (
         <div className="flex items-center gap-2 glassmorphism p-2 rounded-lg">
@@ -24,8 +24,8 @@ const PowerUpIndicator: React.FC<{ type: GameObjectType.SpeedBoost | GameObjectT
 
 const FlipIndicator: React.FC<{ cooldown: number }> = ({ cooldown }) => {
     const maxCooldown = FLIP_COOLDOWN + FLIP_DURATION; 
-    const isReady = cooldown === 0;
-    const progress = isReady ? 100 : ((maxCooldown - cooldown) / maxCooldown) * 100;
+    const isReady = cooldown <= 0.001;
+    const progress = isReady ? 100 : Math.max(0, Math.min(100, ((maxCooldown - cooldown) / maxCooldown) * 100));
     
     return (
         <div className={`flex items-center gap-2 glassmorphism p-2 rounded-lg transition-opacity duration-300 ${isReady ? 'opacity-100' : 'opacity-60'}`}>
@@ -39,8 +39,8 @@ const FlipIndicator: React.FC<{ cooldown: number }> = ({ cooldown }) => {
 
 const SlideIndicator: React.FC<{ cooldown: number }> = ({ cooldown }) => {
     const maxCooldown = SLIDE_COOLDOWN + SLIDE_DURATION;
-    const isReady = cooldown === 0;
-    const progress = isReady ? 100 : ((maxCooldown - cooldown) / maxCooldown) * 100;
+    const isReady = cooldown <= 0.001;
+    const progress = isReady ? 100 : Math.max(0, Math.min(100, ((maxCooldown - cooldown) / maxCooldown) * 100));
     
     return (
         <div className={`flex items-center gap-2 glassmorphism p-2 rounded-lg transition-opacity duration-300 ${isReady ? 'opacity-100' : 'opacity-60'}`}>
@@ -55,18 +55,18 @@ const SlideIndicator: React.FC<{ cooldown: number }> = ({ cooldown }) => {
 
 export const HUD: React.FC<HUDProps> = ({ gameState, onPause }) => {
     return (
-        <div className="absolute top-0 left-0 w-full h-full p-4 md:p-6 pointer-events-none text-white z-10 flex flex-col justify-between">
+        <div className="game-hud absolute top-0 left-0 w-full h-full pointer-events-none text-white z-10 flex flex-col justify-between">
             {/* Top Section */}
             <div className="flex justify-between items-start">
                 {/* Score and Speed */}
                 <div className="flex flex-col items-start glassmorphism p-3 rounded-lg">
-                    <span className="text-4xl font-black tracking-tighter leading-none">{Math.floor(gameState.score)}</span>
-                    <span className="text-sm text-gray-400">SCORE</span>
-                    <span className="text-sm text-cyan-300 mt-1">SPEED: {gameState.gameSpeed.toFixed(1)}</span>
+                    <span className="text-2xl sm:text-4xl font-black tracking-tighter leading-none">{Math.floor(gameState.score)}</span>
+                    <span className="text-xs sm:text-sm text-gray-400">SKÓRE</span>
+                    <span className="text-xs sm:text-sm text-cyan-300 mt-1">RYCHLOST: {gameState.gameSpeed.toFixed(1)}</span>
                 </div>
 
                 {/* Pause Button */}
-                <button onClick={onPause} className="glassmorphism p-3 rounded-full pointer-events-auto hover:bg-white/20 transition">
+                <button type="button" aria-label="Pozastavit hru" onClick={onPause} className="glassmorphism p-3 rounded-full pointer-events-auto hover:bg-white/20 transition">
                     <PauseIcon className="w-6 h-6" />
                 </button>
             </div>
@@ -76,10 +76,10 @@ export const HUD: React.FC<HUDProps> = ({ gameState, onPause }) => {
                 {/* Health */}
                 <div className="flex gap-2 glassmorphism p-3 rounded-lg">
                     {Array.from({ length: gameState.player.health }).map((_, i) => (
-                        <HeartIcon key={i} className="w-8 h-8 text-red-500" />
+                        <HeartIcon key={i} className={`w-6 h-6 sm:w-8 sm:h-8 text-red-500 ${gameState.player.damageCooldown > 0 ? 'animate-pulse' : ''}`} />
                     ))}
                     {Array.from({ length: 5 - gameState.player.health }).map((_, i) => (
-                         <HeartIcon key={i} className="w-8 h-8 text-gray-700" />
+                         <HeartIcon key={i} className="w-6 h-6 sm:w-8 sm:h-8 text-gray-700" />
                     ))}
                 </div>
 

@@ -36,12 +36,13 @@ export const Player3D: React.FC<Player3DProps> = ({ playerState, skin, powerUps,
     const isInvincible = useMemo(() => powerUps.some(p => p.type === GameObjectType.Invincibility), [powerUps]);
     const isSpeedBoosted = useMemo(() => powerUps.some(p => p.type === GameObjectType.SpeedBoost), [powerUps]);
 
-    useFrame(({ clock }) => {
+    useFrame(({ clock }, delta) => {
         if (!groupRef.current || !playerModelRef.current) return;
+        const damping = 1 - Math.exp(-12 * delta);
         
         // Smooth lane switching
         const targetX = playerState.lane * 4;
-        groupRef.current.position.x = THREE.MathUtils.lerp(groupRef.current.position.x, targetX, 0.2);
+        groupRef.current.position.x = THREE.MathUtils.lerp(groupRef.current.position.x, targetX, damping);
 
         // --- DYNAMIC FLIP & HOP ANIMATIONS ---
         if (playerState.isFlipping) {
@@ -75,8 +76,8 @@ export const Player3D: React.FC<Player3DProps> = ({ playerState, skin, powerUps,
             playerModelRef.current.rotation.x = SLIDE_ROTATION * slideArc;
         } else {
             // Lerp back to original position/rotation when not doing any action
-            groupRef.current.position.y = THREE.MathUtils.lerp(groupRef.current.position.y, 1, 0.2);
-            playerModelRef.current.rotation.x = THREE.MathUtils.lerp(playerModelRef.current.rotation.x, 0, 0.2);
+            groupRef.current.position.y = THREE.MathUtils.lerp(groupRef.current.position.y, 1, damping);
+            playerModelRef.current.rotation.x = THREE.MathUtils.lerp(playerModelRef.current.rotation.x, 0, damping);
         }
         
         // Shield pulse animation

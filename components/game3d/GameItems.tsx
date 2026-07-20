@@ -32,17 +32,17 @@ const Invincibility: React.FC = () => (
 
 const Policajt: React.FC = () => (
     <group>
-        // Tělo
+        {/* Tělo */}
         <mesh castShadow position={[0, 1.1, 0]}>
             <capsuleGeometry args={[0.4, 1.4, 4, 16]} />
             <meshStandardMaterial color="#1e3a8a" roughness={0.7} />
         </mesh>
-        // Hlava
+        {/* Hlava */}
         <mesh castShadow position={[0, 2.0, 0]}>
             <sphereGeometry args={[0.35, 32, 32]} />
             <meshStandardMaterial color="#f5d0c5" roughness={0.6} />
         </mesh>
-        // Čepice
+        {/* Čepice */}
         <group position={[0, 2.2, 0]}>
             <mesh castShadow>
                 <cylinderGeometry args={[0.4, 0.45, 0.3, 32]} />
@@ -57,12 +57,12 @@ const Policajt: React.FC = () => (
                 <meshStandardMaterial color="#facc15" emissive="#facc15" emissiveIntensity={2} />
             </mesh>
         </group>
-        // Odznak
+        {/* Odznak */}
         <mesh position={[0.3, 1.5, 0.4]} rotation={[0, 0, 0]}>
             <cylinderGeometry args={[0.1, 0.1, 0.05, 16]} />
             <meshStandardMaterial color="#facc15" metalness={1} roughness={0.3} />
         </mesh>
-        // Opasek
+        {/* Opasek */}
         <mesh position={[0, 1.1, 0]}>
             <torusGeometry args={[0.45, 0.05, 16, 32]} />
             <meshStandardMaterial color="#000000" roughness={0.5} />
@@ -72,24 +72,24 @@ const Policajt: React.FC = () => (
 
 const Auto: React.FC = () => (
     <group>
-        // Karoserie
+        {/* Karoserie */}
         <mesh castShadow position={[0, 0.6, 0]}>
             <boxGeometry args={[2.5, 0.8, 5]} />
             <meshStandardMaterial color="#dc2626" roughness={0.2} metalness={0.8} />
         </mesh>
-        // Kabina
+        {/* Kabina */}
         <group position={[0, 1.2, -0.8]}>
             <mesh castShadow>
                 <boxGeometry args={[2.2, 0.8, 2]} />
                 <meshStandardMaterial color="#111827" roughness={0.1} metalness={0.9} />
             </mesh>
-            // Přední sklo
+            {/* Přední sklo */}
             <mesh position={[0, 0.2, 1]} rotation={[0.3, 0, 0]}>
                 <boxGeometry args={[2, 0.8, 0.1]} />
                 <meshStandardMaterial color="#38bdf8" roughness={0.1} metalness={0.9} opacity={0.7} transparent />
             </mesh>
         </group>
-        // Světla
+        {/* Světla */}
         <group position={[0, 0.5, 2.4]}>
             <mesh position={[-0.8, 0, 0]}>
                 <boxGeometry args={[0.5, 0.3, 0.1]} />
@@ -100,7 +100,7 @@ const Auto: React.FC = () => (
                 <meshStandardMaterial color="#fef3c7" emissive="#fef3c7" emissiveIntensity={2} />
             </mesh>
         </group>
-        // Kola
+        {/* Kola */}
         <group>
             {[[-1.3, 0.3, -1.5] as const, [1.3, 0.3, -1.5] as const, [-1.3, 0.3, 1.5] as const, [1.3, 0.3, 1.5] as const].map((pos, i) => (
                 <mesh key={i} position={pos} rotation={[0, 0, Math.PI / 2]}>
@@ -109,7 +109,7 @@ const Auto: React.FC = () => (
                 </mesh>
             ))}
         </group>
-        // Majáky
+        {/* Majáky */}
         <group position={[0, 1.7, 0]}>
             <mesh position={[-0.5, 0, 0]}>
                 <cylinderGeometry args={[0.15, 0.15, 0.2, 16]} />

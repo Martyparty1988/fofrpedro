@@ -92,6 +92,8 @@ export const EffectsManager: React.FC<EffectsManagerProps> = ({ effects }) => {
                         return <ParticleBurst key={effect.id} position={effect.position} color={"#a855f7"} count={8} size={0.15} duration={0.4} speed={5} />;
                     case 'powerup-collect':
                          return <ParticleBurst key={effect.id} position={effect.position} color={"#fde047"} count={30} size={0.25} duration={0.8} speed={15} />;
+                    case 'obstacle-destroy':
+                         return <ParticleBurst key={effect.id} position={effect.position} color={"#f97316"} count={20} size={0.2} duration={0.6} speed={12} />;
                     case 'damage':
                          return <ParticleBurst key={effect.id} position={effect.position} color={"#ff4400"} count={20} size={0.2} duration={0.6} speed={12} />;
                     case 'speech-bubble':

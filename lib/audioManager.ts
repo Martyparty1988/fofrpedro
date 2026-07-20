@@ -1,5 +1,6 @@
-// This is a mock implementation since Tone.js is not available in this environment.
-// In a real project, you would import Tone.js and create real synths.
+type AudioWindow = Window & {
+    webkitAudioContext?: typeof AudioContext;
+};
 
 class AudioManager {
     private volume: number = 0.5;
@@ -16,7 +17,14 @@ class AudioManager {
     
     private initContext() {
         if (!this.context) {
-            this.context = new (window.AudioContext || (window as any).webkitAudioContext)();
+            const AudioContextConstructor = window.AudioContext
+                ?? (window as AudioWindow).webkitAudioContext;
+            if (!AudioContextConstructor) return;
+            this.context = new AudioContextConstructor();
+        }
+
+        if (this.context.state === 'suspended') {
+            void this.context.resume().catch(error => console.error('Audio context could not resume', error));
         }
     }
 

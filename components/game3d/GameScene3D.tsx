@@ -23,10 +23,11 @@ export const GameScene3D: React.FC<GameScene3DProps> = ({ gameState, settings, s
     const lastHealth = useRef(gameState.player.health);
     const fogRef = useRef<THREE.Fog>(null!);
     
-    useFrame((state) => {
+    useFrame((state, delta) => {
         // Smooth camera follow logic
         const targetX = gameState.player.lane * 4;
-        state.camera.position.x = THREE.MathUtils.lerp(state.camera.position.x, targetX, 0.1);
+        const damping = 1 - Math.exp(-8 * delta);
+        state.camera.position.x = THREE.MathUtils.lerp(state.camera.position.x, targetX, damping);
         state.camera.position.y = CAMERA_OFFSET.y;
         state.camera.position.z = CAMERA_OFFSET.z;
         state.camera.lookAt(targetX, 2, 0);
@@ -38,7 +39,7 @@ export const GameScene3D: React.FC<GameScene3DProps> = ({ gameState, settings, s
         lastHealth.current = gameState.player.health;
         
         if (cameraShake.current > 0) {
-            cameraShake.current -= 0.05;
+            cameraShake.current = Math.max(0, cameraShake.current - 3 * delta);
             state.camera.position.x += (Math.random() - 0.5) * SHAKE_INTENSITY * cameraShake.current;
             state.camera.position.y += (Math.random() - 0.5) * SHAKE_INTENSITY * cameraShake.current;
         }
@@ -74,7 +75,7 @@ export const GameScene3D: React.FC<GameScene3DProps> = ({ gameState, settings, s
             <Road speed={gameState.gameSpeed} />
             <Environment speed={gameState.gameSpeed} />
             <EffectsManager effects={gameState.effects} />
-            <Rain speed={gameState.gameSpeed} />
+            {!settings.reducedMotion && <Rain speed={gameState.gameSpeed} />}
             <gridHelper args={[1000, 250, '#ff00ff', '#444444']} position={[0, -0.01, 0]} visible={false} />
         </>
     );
