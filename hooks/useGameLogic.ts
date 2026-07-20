@@ -27,6 +27,7 @@ import {
 } from '../constants/gameConstants';
 import { hlasky, HlaskaCategory } from '../constants/hlasky';
 import { advanceTimer, resolveObstacleCollision } from '../lib/gameRules';
+import { getGameMessageDurationMs } from '../lib/gamePresentation';
 
 type ObstaclePattern = (GameObjectType | null)[];
 
@@ -53,6 +54,8 @@ const PATTERNS: PatternDefinition[] = [
     { pattern: [GameObjectType.Policajt, GameObjectType.Auto, GameObjectType.Policajt], minScore: 22000, weight: 1 },
     { pattern: [GameObjectType.Barikada, GameObjectType.Barikada, GameObjectType.Barikada], minScore: 25000, weight: 2 },
 ];
+
+const INTERRUPTING_MESSAGES = new Set<HlaskaCategory>(['collision', 'powerup', 'gameover']);
 
 export const createInitialState = (): GameState => ({
     status: 'playing',
@@ -89,8 +92,10 @@ export const useGameLogic = (onGameOver: (score: number) => void, settings: Sett
         setGameState(nextState);
     }, []);
 
-    const addSpeechBubble = useCallback((state: GameState, category: HlaskaCategory): GameState => {
-        if (state.effects.some(effect => effect.type === 'speech-bubble')) return state;
+    const addSpeechMessage = useCallback((state: GameState, category: HlaskaCategory): GameState => {
+        const hasActiveMessage = state.effects.some(effect => effect.type === 'speech-bubble');
+        const canInterrupt = INTERRUPTING_MESSAGES.has(category);
+        if (hasActiveMessage && !canInterrupt) return state;
 
         const lines = hlasky[category];
         if (!lines?.length) return state;
@@ -106,17 +111,20 @@ export const useGameLogic = (onGameOver: (score: number) => void, settings: Sett
         const newEffect: GameEffect = {
             id: createdAt + Math.random(),
             type: 'speech-bubble',
-            position: [state.player.lane * LANE_WIDTH, 3.5, 0],
+            position: [0, 0, 0],
             createdAt,
             text,
         };
 
-        return { ...state, effects: [...state.effects, newEffect] };
+        const effects = canInterrupt
+            ? state.effects.filter(effect => effect.type !== 'speech-bubble')
+            : state.effects;
+        return { ...state, effects: [...effects, newEffect] };
     }, []);
 
     useEffect(() => {
-        commitGameState(addSpeechBubble(gameStateRef.current, 'start'));
-    }, [addSpeechBubble, commitGameState]);
+        commitGameState(addSpeechMessage(gameStateRef.current, 'start'));
+    }, [addSpeechMessage, commitGameState]);
 
     const resetGame = useCallback(() => {
         distanceSinceLastSpawn.current = 0;
@@ -124,8 +132,8 @@ export const useGameLogic = (onGameOver: (score: number) => void, settings: Sett
         scoreMilestone.current = 10000;
         lastTimeRef.current = performance.now();
         accumulatorRef.current = 0;
-        commitGameState(addSpeechBubble(createInitialState(), 'start'));
-    }, [addSpeechBubble, commitGameState]);
+        commitGameState(addSpeechMessage(createInitialState(), 'start'));
+    }, [addSpeechMessage, commitGameState]);
 
     const pauseGame = useCallback(() => {
         const current = gameStateRef.current;
@@ -178,8 +186,8 @@ export const useGameLogic = (onGameOver: (score: number) => void, settings: Sett
                 flipCooldown: FLIP_COOLDOWN + FLIP_DURATION,
             },
         };
-        commitGameState(addSpeechBubble(nextState, settings.reducedMotion ? 'jump' : 'frontflip'));
-    }, [addSpeechBubble, commitGameState, settings.reducedMotion]);
+        commitGameState(addSpeechMessage(nextState, settings.reducedMotion ? 'jump' : 'frontflip'));
+    }, [addSpeechMessage, commitGameState, settings.reducedMotion]);
 
     const triggerSlide = useCallback(() => {
         const current = gameStateRef.current;
@@ -201,8 +209,8 @@ export const useGameLogic = (onGameOver: (score: number) => void, settings: Sett
                 slideCooldown: SLIDE_COOLDOWN + SLIDE_DURATION,
             },
         };
-        commitGameState(addSpeechBubble(nextState, 'slide'));
-    }, [addSpeechBubble, commitGameState]);
+        commitGameState(addSpeechMessage(nextState, 'slide'));
+    }, [addSpeechMessage, commitGameState]);
 
     const spawnGameObjects = useCallback((state: GameState): GameState => {
         if (distanceSinceLastSpawn.current < SPAWN_INTERVAL) return state;
@@ -321,7 +329,7 @@ export const useGameLogic = (onGameOver: (score: number) => void, settings: Sett
                 case GameObjectType.SpeedBoost:
                 case GameObjectType.Invincibility:
                     audioManager.playPowerUpSound();
-                    newState = addSpeechBubble(newState, 'powerup');
+                    newState = addSpeechMessage(newState, 'powerup');
                     newState.activePowerUps = newState.activePowerUps.filter(powerUp => powerUp.type !== object.type);
                     newState.activePowerUps.push({ type: object.type, timeLeft: POWERUP_DURATION });
                     newEffects.push({ id: object.id, type: 'powerup-collect', position: object.position, createdAt });
@@ -342,7 +350,7 @@ export const useGameLogic = (onGameOver: (score: number) => void, settings: Sett
                         newEffects.push({ id: object.id, type: 'obstacle-destroy', position: object.position, createdAt });
                     } else if (outcome === 'hit') {
                         audioManager.playDamageSound();
-                        newState = addSpeechBubble(newState, 'collision');
+                        newState = addSpeechMessage(newState, 'collision');
                         newState.player.health = Math.max(0, newState.player.health - 1);
                         newState.player.damageCooldown = DAMAGE_INVULNERABILITY;
                         newEffects.push({
@@ -363,7 +371,7 @@ export const useGameLogic = (onGameOver: (score: number) => void, settings: Sett
         newState.gameObjects = objectsToKeep;
         newState.effects = [...newState.effects, ...newEffects];
         return newState;
-    }, [addSpeechBubble, settings.haptics]);
+    }, [addSpeechMessage, settings.haptics]);
 
     const gameLoop = useCallback((time: number) => {
         const currentState = gameStateRef.current;
@@ -406,7 +414,9 @@ export const useGameLogic = (onGameOver: (score: number) => void, settings: Sett
                 .map(powerUp => ({ ...powerUp, timeLeft: advanceTimer(powerUp.timeLeft, FIXED_TIMESTEP) }))
                 .filter(powerUp => powerUp.timeLeft > 0);
             nextState.effects = nextState.effects.filter(effect => {
-                const lifespan = effect.type === 'speech-bubble' ? 3000 : EFFECT_LIFESPAN;
+                const lifespan = effect.type === 'speech-bubble'
+                    ? getGameMessageDurationMs(effect.text ?? '')
+                    : EFFECT_LIFESPAN;
                 return now - effect.createdAt < lifespan;
             });
 
@@ -433,7 +443,7 @@ export const useGameLogic = (onGameOver: (score: number) => void, settings: Sett
                 * (nextState.player.isFlipping ? FLIP_SCORE_MULTIPLIER : 1);
 
             if (nextState.score >= scoreMilestone.current) {
-                nextState = addSpeechBubble(nextState, 'pedroultimate');
+                nextState = addSpeechMessage(nextState, 'pedroultimate');
                 scoreMilestone.current += 10000;
             }
 
@@ -452,7 +462,7 @@ export const useGameLogic = (onGameOver: (score: number) => void, settings: Sett
         }
 
         if (nextState.player.health <= 0) {
-            nextState = addSpeechBubble({ ...nextState, status: 'gameOver' }, 'gameover');
+            nextState = addSpeechMessage({ ...nextState, status: 'gameOver' }, 'gameover');
             commitGameState(nextState);
             audioManager.playGameOverSound();
             onGameOver(Math.floor(nextState.score));
@@ -461,7 +471,7 @@ export const useGameLogic = (onGameOver: (score: number) => void, settings: Sett
 
         commitGameState(nextState);
         gameLoopRef.current = requestAnimationFrame(gameLoop);
-    }, [addSpeechBubble, checkCollisions, commitGameState, onGameOver, spawnGameObjects]);
+    }, [addSpeechMessage, checkCollisions, commitGameState, onGameOver, spawnGameObjects]);
 
     useEffect(() => {
         if (gameState.status === 'playing') {
