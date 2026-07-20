@@ -15,24 +15,33 @@ interface GameScene3DProps {
     skin: Skin;
 }
 
-const CAMERA_OFFSET = new THREE.Vector3(0, 5, 10);
-const SHAKE_INTENSITY = 0.3;
+const CAMERA_HEIGHT = 4.45;
+const CAMERA_DISTANCE = 9.5;
+const SHAKE_INTENSITY = 0.24;
 
 export const GameScene3D: React.FC<GameScene3DProps> = ({ gameState, settings, skin }) => {
     const cameraShake = useRef(0);
     const lastHealth = useRef(gameState.player.health);
     const fogRef = useRef<THREE.Fog>(null!);
+    const sceneSpeed = gameState.status === 'playing' ? gameState.gameSpeed : 0;
     
     useFrame((state, delta) => {
-        // Smooth camera follow logic
         const targetX = gameState.player.lane * 4;
         const damping = 1 - Math.exp(-8 * delta);
-        state.camera.position.x = THREE.MathUtils.lerp(state.camera.position.x, targetX, damping);
-        state.camera.position.y = CAMERA_OFFSET.y;
-        state.camera.position.z = CAMERA_OFFSET.z;
-        state.camera.lookAt(targetX, 2, 0);
+        const cameraTargetX = targetX * 0.55;
+        const cameraBob = gameState.status === 'playing' && !settings.reducedMotion
+            ? Math.sin(state.clock.elapsedTime * 6) * 0.025
+            : 0;
+        state.camera.position.x = THREE.MathUtils.lerp(state.camera.position.x, cameraTargetX, damping);
+        state.camera.position.y = THREE.MathUtils.lerp(state.camera.position.y, CAMERA_HEIGHT + cameraBob, damping);
+        state.camera.position.z = CAMERA_DISTANCE;
+        state.camera.lookAt(targetX * 0.82, 1.55, -4);
+        state.camera.rotation.z = THREE.MathUtils.lerp(
+            state.camera.rotation.z,
+            (cameraTargetX - state.camera.position.x) * -0.018,
+            damping,
+        );
 
-        // Camera shake logic
         if (gameState.player.health < lastHealth.current && settings.cameraShake) {
             cameraShake.current = 1.0;
         }
@@ -44,39 +53,60 @@ export const GameScene3D: React.FC<GameScene3DProps> = ({ gameState, settings, s
             state.camera.position.y += (Math.random() - 0.5) * SHAKE_INTENSITY * cameraShake.current;
         }
 
-        // Dynamic fog
         if (fogRef.current) {
-            const minFog = 40;
-            const maxFog = 80;
-            // Normalize speed from its min/max range (15-50) to a 0-1 range
-            const normalizedSpeed = (gameState.gameSpeed - 15) / (50 - 15);
-            // Lerp fog distance. As speed increases, fog gets closer.
-            fogRef.current.far = THREE.MathUtils.lerp(maxFog, minFog, normalizedSpeed);
+            const normalizedSpeed = THREE.MathUtils.clamp((gameState.gameSpeed - 15) / 35, 0, 1);
+            fogRef.current.far = THREE.MathUtils.lerp(105, 72, normalizedSpeed);
         }
     });
 
     return (
         <>
-            <ambientLight intensity={0.2} />
+            <color attach="background" args={['#02050c']} />
+            <hemisphereLight color="#8fb7d4" groundColor="#08050f" intensity={0.9} />
+            <ambientLight intensity={0.08} />
             <directionalLight
                 castShadow
-                position={[10, 20, 5]}
-                intensity={0.8}
-                color="#6495ED"
+                position={[-14, 24, 10]}
+                intensity={1.75}
+                color="#b8d6ff"
                 shadow-mapSize={[1024, 1024]}
+                shadow-camera-left={-16}
+                shadow-camera-right={16}
+                shadow-camera-top={18}
+                shadow-camera-bottom={-6}
+                shadow-camera-near={1}
+                shadow-camera-far={55}
             />
-            <pointLight position={[-20, 4, 0]} color="#ff00ff" intensity={30} distance={50} />
-            <pointLight position={[20, 4, 0]} color="#00ffff" intensity={30} distance={50} />
+            <spotLight position={[0, 12, 7]} color="#d8ecff" intensity={42} angle={0.48} penumbra={0.85} distance={42} />
+            <pointLight position={[-6.8, 5.2, -4]} color="#ff65c3" intensity={24} distance={28} decay={2} />
+            <pointLight position={[6.8, 5.2, -18]} color="#70e1f5" intensity={26} distance={30} decay={2} />
+            <pointLight position={[-6.8, 5.2, -36]} color="#70e1f5" intensity={20} distance={26} decay={2} />
 
-            <fog ref={fogRef} attach="fog" args={['#000000', 10, 70]} />
+            <fog ref={fogRef} attach="fog" args={['#07101a', 26, 105]} />
+
+            <group position={[25, 31, -76]}>
+                <mesh>
+                    <sphereGeometry args={[4.6, 32, 20]} />
+                    <meshBasicMaterial color="#bcd7e8" toneMapped={false} />
+                </mesh>
+                <mesh position={[-1.2, 0.9, 4.15]} scale={[0.7, 0.5, 0.15]}>
+                    <sphereGeometry args={[1, 16, 10]} />
+                    <meshBasicMaterial color="#8ea9bb" />
+                </mesh>
+            </group>
             
-            <Player3D playerState={gameState.player} skin={skin} powerUps={gameState.activePowerUps} settings={settings} />
+            <Road speed={sceneSpeed} />
+            <Environment speed={sceneSpeed} />
+            <Player3D
+                playerState={gameState.player}
+                skin={skin}
+                powerUps={gameState.activePowerUps}
+                settings={settings}
+                active={gameState.status === 'playing'}
+            />
             <GameItems gameObjects={gameState.gameObjects} />
-            <Road speed={gameState.gameSpeed} />
-            <Environment speed={gameState.gameSpeed} />
             <EffectsManager effects={gameState.effects} />
-            {!settings.reducedMotion && <Rain speed={gameState.gameSpeed} />}
-            <gridHelper args={[1000, 250, '#ff00ff', '#444444']} position={[0, -0.01, 0]} visible={false} />
+            {!settings.reducedMotion && <Rain speed={sceneSpeed} />}
         </>
     );
 };

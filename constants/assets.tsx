@@ -1,5 +1,6 @@
-import React from 'react';
-import type { ThreeElements } from '@react-three/fiber';
+import React, { useRef } from 'react';
+import { useFrame, type ThreeElements } from '@react-three/fiber';
+import * as THREE from 'three';
 import type { Skin } from '../types';
 
 // --- SVG Icons ---
@@ -40,76 +41,248 @@ export const SlideIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
 );
 
 
-// --- 3D Skin Models ---
+// --- Animated human runner model ---
 
 type PlayerModelProps = ThreeElements['group'] & {
     colors: Skin['colors'];
+    motion?: 'idle' | 'run';
+    reducedMotion?: boolean;
 };
 
-export const PlayerModel: React.FC<PlayerModelProps> = ({ colors, ...props }) => {
+const SKIN_TONE = '#c98f70';
+const HAIR_COLOR = '#211711';
+const TROUSER_COLOR = '#171c27';
+const SHOE_COLOR = '#090b10';
+
+const PlayerModelComponent: React.FC<PlayerModelProps> = ({
+    colors,
+    motion = 'idle',
+    reducedMotion = false,
+    ...props
+}) => {
+    const torsoRef = useRef<THREE.Group>(null!);
+    const leftArmRef = useRef<THREE.Group>(null!);
+    const rightArmRef = useRef<THREE.Group>(null!);
+    const leftForearmRef = useRef<THREE.Group>(null!);
+    const rightForearmRef = useRef<THREE.Group>(null!);
+    const leftLegRef = useRef<THREE.Group>(null!);
+    const rightLegRef = useRef<THREE.Group>(null!);
+    const leftShinRef = useRef<THREE.Group>(null!);
+    const rightShinRef = useRef<THREE.Group>(null!);
+
+    useFrame(({ clock }, delta) => {
+        const running = motion === 'run';
+        const phase = clock.elapsedTime * (running ? 9 : 1.6);
+        const intensity = running ? (reducedMotion ? 0.2 : 0.72) : 0.045;
+        const swing = Math.sin(phase) * intensity;
+        const bounce = running && !reducedMotion ? Math.abs(Math.sin(phase)) * 0.035 : Math.sin(phase) * 0.008;
+        const damping = 1 - Math.exp(-14 * delta);
+
+        leftArmRef.current.rotation.x = THREE.MathUtils.lerp(leftArmRef.current.rotation.x, -swing, damping);
+        rightArmRef.current.rotation.x = THREE.MathUtils.lerp(rightArmRef.current.rotation.x, swing, damping);
+        leftForearmRef.current.rotation.x = THREE.MathUtils.lerp(leftForearmRef.current.rotation.x, -0.3 - Math.max(0, swing) * 0.55, damping);
+        rightForearmRef.current.rotation.x = THREE.MathUtils.lerp(rightForearmRef.current.rotation.x, -0.3 + Math.min(0, swing) * 0.55, damping);
+        leftLegRef.current.rotation.x = THREE.MathUtils.lerp(leftLegRef.current.rotation.x, swing, damping);
+        rightLegRef.current.rotation.x = THREE.MathUtils.lerp(rightLegRef.current.rotation.x, -swing, damping);
+        leftShinRef.current.rotation.x = THREE.MathUtils.lerp(leftShinRef.current.rotation.x, Math.max(0, -swing) * 0.7, damping);
+        rightShinRef.current.rotation.x = THREE.MathUtils.lerp(rightShinRef.current.rotation.x, Math.max(0, swing) * 0.7, damping);
+        torsoRef.current.position.y = THREE.MathUtils.lerp(torsoRef.current.position.y, 1.9 + bounce, damping);
+        torsoRef.current.rotation.z = THREE.MathUtils.lerp(torsoRef.current.rotation.z, running ? swing * 0.035 : 0, damping);
+    });
+
     return (
         <group {...props}>
-            {/* Body */}
-            <mesh castShadow position={[0, 0.9, 0]}>
-                <capsuleGeometry args={[0.4, 1, 4, 16]} />
-                <meshStandardMaterial color={colors.body} roughness={0.4} metalness={0.2} />
-            </mesh>
-            {/* Head */}
-            <mesh castShadow position={[0, 1.8, 0]}>
-                <sphereGeometry args={[0.4, 32, 32]} />
-                <meshStandardMaterial color="#f0e68c" />
-            </mesh>
-             {/* Cyber Visor */}
-            <mesh position={[0, 1.8, 0.25]}>
-                <torusGeometry args={[0.3, 0.08, 8, 32, Math.PI * 1.5]} />
-                <meshStandardMaterial color={colors.hat} emissive={colors.hat} emissiveIntensity={4} toneMapped={false} />
-            </mesh>
-             {/* Hat */}
-            <mesh castShadow position={[0, 2.1, 0]} rotation={[0,0,0.2]}>
-                <cylinderGeometry args={[0.5, 0.55, 0.3, 16]} />
-                <meshStandardMaterial color={colors.hat} />
-            </mesh>
-             {/* Backpack */}
-            <group position={[0, 1, -0.4]}>
-                <mesh castShadow>
-                    <boxGeometry args={[0.7, 0.9, 0.4]} />
-                    <meshStandardMaterial color={colors.backpack} />
-                </mesh>
-                <mesh position={[0, 0.3, 0.25]}>
-                    <cylinderGeometry args={[0.1, 0.1, 0.1, 16]} />
-                    <meshStandardMaterial color="#7dd3fc" emissive="#7dd3fc" emissiveIntensity={3} toneMapped={false}/>
-                </mesh>
-            </group>
-            
-            {/* Arms */}
-            <mesh castShadow position={[-0.5, 1.2, 0]} rotation={[0, 0, 0.5]}>
-                <capsuleGeometry args={[0.1, 0.6, 4, 8]} />
-                <meshStandardMaterial color={colors.body} />
-            </mesh>
-            <mesh castShadow position={[0.5, 1.2, 0]} rotation={[0, 0, -0.5]}>
-                <capsuleGeometry args={[0.1, 0.6, 4, 8]} />
-                <meshStandardMaterial color={colors.body} />
+            {/* Pelvis and articulated legs */}
+            <mesh castShadow position={[0, 1.28, 0]} scale={[1, 0.72, 0.72]}>
+                <capsuleGeometry args={[0.3, 0.24, 4, 12]} />
+                <meshStandardMaterial color={TROUSER_COLOR} roughness={0.82} />
             </mesh>
 
-            {/* Legs */}
-            <mesh castShadow position={[-0.2, 0.4, 0]}>
-                <capsuleGeometry args={[0.15, 0.8, 4, 8]} />
-                <meshStandardMaterial color={colors.body} />
+            <group ref={leftLegRef} position={[-0.2, 1.27, 0]}>
+                <mesh castShadow position={[0, -0.3, 0]} scale={[1, 1, 0.92]}>
+                    <capsuleGeometry args={[0.145, 0.36, 4, 10]} />
+                    <meshStandardMaterial color={TROUSER_COLOR} roughness={0.9} />
+                </mesh>
+                <group ref={leftShinRef} position={[0, -0.59, 0]}>
+                    <mesh castShadow position={[0, -0.25, 0]} scale={[0.88, 1, 0.9]}>
+                        <capsuleGeometry args={[0.13, 0.31, 4, 10]} />
+                        <meshStandardMaterial color="#222a38" roughness={0.9} />
+                    </mesh>
+                    <mesh castShadow position={[0, -0.53, 0.1]}>
+                        <boxGeometry args={[0.3, 0.16, 0.5]} />
+                        <meshStandardMaterial color={SHOE_COLOR} roughness={0.48} metalness={0.2} />
+                    </mesh>
+                    <mesh position={[0, -0.58, 0.15]}>
+                        <boxGeometry args={[0.31, 0.035, 0.52]} />
+                        <meshStandardMaterial color={colors.hat} roughness={0.5} />
+                    </mesh>
+                </group>
+            </group>
+
+            <group ref={rightLegRef} position={[0.2, 1.27, 0]}>
+                <mesh castShadow position={[0, -0.3, 0]} scale={[1, 1, 0.92]}>
+                    <capsuleGeometry args={[0.145, 0.36, 4, 10]} />
+                    <meshStandardMaterial color={TROUSER_COLOR} roughness={0.9} />
+                </mesh>
+                <group ref={rightShinRef} position={[0, -0.59, 0]}>
+                    <mesh castShadow position={[0, -0.25, 0]} scale={[0.88, 1, 0.9]}>
+                        <capsuleGeometry args={[0.13, 0.31, 4, 10]} />
+                        <meshStandardMaterial color="#222a38" roughness={0.9} />
+                    </mesh>
+                    <mesh castShadow position={[0, -0.53, 0.1]}>
+                        <boxGeometry args={[0.3, 0.16, 0.5]} />
+                        <meshStandardMaterial color={SHOE_COLOR} roughness={0.48} metalness={0.2} />
+                    </mesh>
+                    <mesh position={[0, -0.58, 0.15]}>
+                        <boxGeometry args={[0.31, 0.035, 0.52]} />
+                        <meshStandardMaterial color={colors.hat} roughness={0.5} />
+                    </mesh>
+                </group>
+            </group>
+
+            {/* Layered jacket and utility harness */}
+            <group ref={torsoRef} position={[0, 1.9, 0]}>
+                <mesh castShadow scale={[1.02, 1, 0.66]}>
+                    <capsuleGeometry args={[0.36, 0.62, 5, 14]} />
+                    <meshStandardMaterial color={colors.body} roughness={0.67} metalness={0.12} />
+                </mesh>
+                <mesh castShadow position={[0, 0.02, 0.27]}>
+                    <boxGeometry args={[0.54, 0.68, 0.08]} />
+                    <meshStandardMaterial color="#111827" roughness={0.52} metalness={0.35} />
+                </mesh>
+                <mesh position={[0, 0.02, 0.32]}>
+                    <boxGeometry args={[0.035, 0.61, 0.025]} />
+                    <meshStandardMaterial color={colors.hat} emissive={colors.hat} emissiveIntensity={1.2} />
+                </mesh>
+                <mesh castShadow position={[0, -0.47, 0]} scale={[1.02, 0.35, 0.72]}>
+                    <cylinderGeometry args={[0.34, 0.34, 0.18, 16]} />
+                    <meshStandardMaterial color="#0b0f17" roughness={0.55} metalness={0.5} />
+                </mesh>
+                <mesh position={[-0.34, -0.47, 0.13]}>
+                    <boxGeometry args={[0.16, 0.16, 0.18]} />
+                    <meshStandardMaterial color={colors.backpack} roughness={0.6} metalness={0.25} />
+                </mesh>
+
+                {/* Backpack with straps and hardware */}
+                <group position={[0, 0, -0.37]}>
+                    <mesh castShadow>
+                        <boxGeometry args={[0.62, 0.88, 0.3]} />
+                        <meshStandardMaterial color={colors.backpack} roughness={0.58} metalness={0.22} />
+                    </mesh>
+                    <mesh castShadow position={[0, 0.31, -0.17]}>
+                        <boxGeometry args={[0.46, 0.16, 0.12]} />
+                        <meshStandardMaterial color="#0d1119" roughness={0.75} />
+                    </mesh>
+                    <mesh position={[0, -0.16, -0.17]}>
+                        <boxGeometry args={[0.34, 0.08, 0.035]} />
+                        <meshStandardMaterial color={colors.hat} emissive={colors.hat} emissiveIntensity={2.2} toneMapped={false} />
+                    </mesh>
+                </group>
+            </group>
+
+            {/* Articulated arms */}
+            <group ref={leftArmRef} position={[-0.45, 2.23, 0]} rotation={[0, 0, 0.1]}>
+                <mesh castShadow position={[0, -0.28, 0]}>
+                    <capsuleGeometry args={[0.12, 0.36, 4, 10]} />
+                    <meshStandardMaterial color={colors.body} roughness={0.72} />
+                </mesh>
+                <group ref={leftForearmRef} position={[0, -0.57, 0]}>
+                    <mesh castShadow position={[0, -0.23, 0]} scale={[0.92, 1, 0.92]}>
+                        <capsuleGeometry args={[0.11, 0.3, 4, 10]} />
+                        <meshStandardMaterial color="#202838" roughness={0.78} />
+                    </mesh>
+                    <mesh castShadow position={[0, -0.47, 0]}>
+                        <sphereGeometry args={[0.125, 12, 10]} />
+                        <meshStandardMaterial color={SKIN_TONE} roughness={0.7} />
+                    </mesh>
+                </group>
+            </group>
+
+            <group ref={rightArmRef} position={[0.45, 2.23, 0]} rotation={[0, 0, -0.1]}>
+                <mesh castShadow position={[0, -0.28, 0]}>
+                    <capsuleGeometry args={[0.12, 0.36, 4, 10]} />
+                    <meshStandardMaterial color={colors.body} roughness={0.72} />
+                </mesh>
+                <group ref={rightForearmRef} position={[0, -0.57, 0]}>
+                    <mesh castShadow position={[0, -0.23, 0]} scale={[0.92, 1, 0.92]}>
+                        <capsuleGeometry args={[0.11, 0.3, 4, 10]} />
+                        <meshStandardMaterial color="#202838" roughness={0.78} />
+                    </mesh>
+                    <mesh castShadow position={[0, -0.47, 0]}>
+                        <sphereGeometry args={[0.125, 12, 10]} />
+                        <meshStandardMaterial color={SKIN_TONE} roughness={0.7} />
+                    </mesh>
+                    <mesh position={[0, -0.25, 0.12]} rotation={[Math.PI / 2, 0, 0]}>
+                        <torusGeometry args={[0.12, 0.025, 6, 16]} />
+                        <meshStandardMaterial color={colors.hat} emissive={colors.hat} emissiveIntensity={1.6} />
+                    </mesh>
+                </group>
+            </group>
+
+            {/* Neck, face, hair and subtle AR glasses */}
+            <mesh castShadow position={[0, 2.46, 0]}>
+                <cylinderGeometry args={[0.14, 0.17, 0.25, 14]} />
+                <meshStandardMaterial color={SKIN_TONE} roughness={0.72} />
             </mesh>
-            <mesh castShadow position={[0.2, 0.4, 0]}>
-                <capsuleGeometry args={[0.15, 0.8, 4, 8]} />
-                <meshStandardMaterial color={colors.body} />
-            </mesh>
-            
-            {/* Feet */}
-             <mesh position={[-0.2, 0.05, 0.1]}>
-                <boxGeometry args={[0.3, 0.1, 0.4]} />
-                <meshStandardMaterial color={colors.backpack} />
-            </mesh>
-             <mesh position={[0.2, 0.05, 0.1]}>
-                <boxGeometry args={[0.3, 0.1, 0.4]} />
-                <meshStandardMaterial color={colors.backpack} />
-            </mesh>
+            <group position={[0, 2.76, 0]}>
+                <mesh castShadow scale={[0.87, 1, 0.82]}>
+                    <sphereGeometry args={[0.38, 24, 18]} />
+                    <meshStandardMaterial color={SKIN_TONE} roughness={0.66} />
+                </mesh>
+                <mesh castShadow position={[0, 0.1, -0.03]} scale={[0.9, 0.72, 0.86]}>
+                    <sphereGeometry args={[0.39, 20, 12, 0, Math.PI * 2, 0, Math.PI / 2]} />
+                    <meshStandardMaterial color={HAIR_COLOR} roughness={0.92} />
+                </mesh>
+                <mesh castShadow position={[0, 0.31, -0.02]} scale={[1, 0.44, 1]}>
+                    <sphereGeometry args={[0.405, 20, 12]} />
+                    <meshStandardMaterial color={colors.hat} roughness={0.78} />
+                </mesh>
+                <mesh castShadow position={[0, 0.25, 0.34]}>
+                    <boxGeometry args={[0.46, 0.055, 0.24]} />
+                    <meshStandardMaterial color={colors.hat} roughness={0.7} />
+                </mesh>
+
+                <mesh castShadow position={[0, -0.035, 0.34]} scale={[0.65, 1, 0.8]}>
+                    <sphereGeometry args={[0.09, 12, 10]} />
+                    <meshStandardMaterial color="#b77960" roughness={0.72} />
+                </mesh>
+                {[-0.145, 0.145].map(x => (
+                    <group key={x} position={[x, 0.055, 0.315]}>
+                        <mesh>
+                            <sphereGeometry args={[0.045, 12, 8]} />
+                            <meshStandardMaterial color="#f5f1e8" roughness={0.4} />
+                        </mesh>
+                        <mesh position={[0, 0, 0.04]}>
+                            <sphereGeometry args={[0.02, 10, 8]} />
+                            <meshStandardMaterial color="#17202c" roughness={0.35} />
+                        </mesh>
+                        <mesh position={[0, 0, 0.065]} scale={[1.4, 0.8, 0.4]}>
+                            <boxGeometry args={[0.13, 0.1, 0.02]} />
+                            <meshStandardMaterial color="#64d9ef" transparent opacity={0.34} metalness={0.4} roughness={0.18} />
+                        </mesh>
+                    </group>
+                ))}
+                <mesh position={[0, 0.055, 0.385]}>
+                    <boxGeometry args={[0.14, 0.018, 0.018]} />
+                    <meshStandardMaterial color={colors.hat} metalness={0.7} roughness={0.28} />
+                </mesh>
+                <mesh position={[0, -0.175, 0.305]} scale={[1, 0.45, 0.35]}>
+                    <capsuleGeometry args={[0.075, 0.08, 4, 12]} />
+                    <meshStandardMaterial color="#72433d" roughness={0.78} />
+                </mesh>
+                {[-0.34, 0.34].map(x => (
+                    <mesh key={x} castShadow position={[x, 0, 0]} scale={[0.45, 0.75, 0.4]}>
+                        <sphereGeometry args={[0.16, 12, 10]} />
+                        <meshStandardMaterial color={SKIN_TONE} roughness={0.72} />
+                    </mesh>
+                ))}
+            </group>
         </group>
     );
 };
+
+export const ProceduralPlayerModel = React.memo(PlayerModelComponent);
+
+// Kept as a compatibility export for any downstream consumer that still uses
+// the original name. New game surfaces render RealisticRunner instead.
+export const PlayerModel = ProceduralPlayerModel;

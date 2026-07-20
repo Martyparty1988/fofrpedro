@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef } from 'react';
 import { Canvas } from '@react-three/fiber';
+import * as THREE from 'three';
 import { GameScene3D } from './game3d/GameScene3D';
 import { useGameLogic } from '../hooks/useGameLogic';
 import { HUD } from './game3d/HUD';
@@ -117,8 +118,13 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onGameOver, onMenu, sett
             <Canvas
                 shadows
                 dpr={[1, 1.5]}
-                camera={{ position: [0, 5, 10], fov: 60 }}
+                camera={{ position: [0, 4.45, 9.5], fov: 55 }}
                 gl={{ antialias: false, powerPreference: 'high-performance' }}
+                onCreated={({ gl }) => {
+                    gl.shadowMap.type = THREE.PCFSoftShadowMap;
+                    gl.toneMapping = THREE.ACESFilmicToneMapping;
+                    gl.toneMappingExposure = 1.05;
+                }}
                 fallback={(
                     <div className="w-full h-full flex items-center justify-center p-6 text-center text-white bg-black">
                         Toto zařízení nepodporuje potřebné 3D zobrazení.
