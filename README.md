@@ -8,6 +8,7 @@ Kyberpunkový 3D endless runner zasazený do Prahy. Hráč mění jízdní pruhy
 
 - ovládání klávesnicí i dotykovými gesty,
 - pauza bez ztráty rozehrané hry,
+- detailní animovaná postava a procedurální noční Praha s mokrou vozovkou,
 - tři vzhledy postavy s 3D náhledem,
 - lokální rekordy, žebříček a export/import postupu,
 - nastavení zvuku, vibrací, chvění kamery a omezeného pohybu,

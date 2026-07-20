@@ -9,20 +9,23 @@ interface Player3DProps {
     skin: Skin;
     powerUps: PowerUpState[];
     settings: Settings;
+    active: boolean;
 }
 
-// Animation constants for easy tweaking
-const FLIP_JUMP_HEIGHT = 3.5;
+const GROUND_Y = 0.04;
+const MODEL_PIVOT_Y = 1.25;
+const MODEL_POSITION: [number, number, number] = [0, -MODEL_PIVOT_Y, 0];
+const FLIP_JUMP_HEIGHT = 2.8;
 const FLIP_ROTATION_SPEED = -Math.PI * 2;
-const HOP_JUMP_HEIGHT = 2.5;
-const SLIDE_HEIGHT_OFFSET = -0.4;
-const SLIDE_ROTATION = Math.PI / 2;
+const HOP_JUMP_HEIGHT = 1.9;
+const SLIDE_HEIGHT_OFFSET = -0.22;
+const SLIDE_ROTATION = Math.PI * 0.42;
 
 
 // A smooth easing function (quintic in-out)
 const easeInOutQuint = (t: number) => t < 0.5 ? 16 * t * t * t * t * t : 1 + 16 * (--t) * t * t * t * t;
 
-export const Player3D: React.FC<Player3DProps> = ({ playerState, skin, powerUps, settings }) => {
+export const Player3D: React.FC<Player3DProps> = ({ playerState, skin, powerUps, settings, active }) => {
     // This ref controls the group's position (lane switching, jumping)
     const groupRef = useRef<THREE.Group>(null!);
     // This ref controls the model's rotation and scale, independent of its position
@@ -54,7 +57,7 @@ export const Player3D: React.FC<Player3DProps> = ({ playerState, skin, powerUps,
 
             if (settings.reducedMotion) {
                 // Smoother hop with parabolic arc for reduced motion
-                groupRef.current.position.y = 1 + jumpArc * HOP_JUMP_HEIGHT;
+                groupRef.current.position.y = GROUND_Y + jumpArc * HOP_JUMP_HEIGHT;
                 playerModelRef.current.rotation.x = 0; // Ensure no rotation
             } else {
                 // Dynamic acrobatic front flip
@@ -64,7 +67,7 @@ export const Player3D: React.FC<Player3DProps> = ({ playerState, skin, powerUps,
                 playerModelRef.current.rotation.x = easedProgress * FLIP_ROTATION_SPEED;
                 
                 // Apply vertical motion to the parent group
-                groupRef.current.position.y = 1 + jumpArc * FLIP_JUMP_HEIGHT;
+                groupRef.current.position.y = GROUND_Y + jumpArc * FLIP_JUMP_HEIGHT;
             }
         } else if (playerState.isSliding) {
             const progress = playerState.slideProgress;
@@ -72,11 +75,11 @@ export const Player3D: React.FC<Player3DProps> = ({ playerState, skin, powerUps,
             const slideArc = 4 * progress * (1 - progress);
 
             // Lower the player and rotate them
-            groupRef.current.position.y = 1 + SLIDE_HEIGHT_OFFSET * slideArc;
+            groupRef.current.position.y = GROUND_Y + SLIDE_HEIGHT_OFFSET * slideArc;
             playerModelRef.current.rotation.x = SLIDE_ROTATION * slideArc;
         } else {
             // Lerp back to original position/rotation when not doing any action
-            groupRef.current.position.y = THREE.MathUtils.lerp(groupRef.current.position.y, 1, damping);
+            groupRef.current.position.y = THREE.MathUtils.lerp(groupRef.current.position.y, GROUND_Y, damping);
             playerModelRef.current.rotation.x = THREE.MathUtils.lerp(playerModelRef.current.rotation.x, 0, damping);
         }
         
@@ -84,7 +87,7 @@ export const Player3D: React.FC<Player3DProps> = ({ playerState, skin, powerUps,
         if (isInvincible && shieldRef.current && invincibilityLightRef.current) {
             const pulse = Math.sin(clock.elapsedTime * 8);
             const scale = 1.1 + pulse * 0.15;
-            shieldRef.current.scale.set(scale, scale, scale);
+            shieldRef.current.scale.set(scale, scale * 0.9, scale * 0.82);
             const opacity = 0.4 + pulse * 0.2;
             (shieldRef.current.material as THREE.MeshStandardMaterial).opacity = opacity;
 
@@ -107,10 +110,15 @@ export const Player3D: React.FC<Player3DProps> = ({ playerState, skin, powerUps,
     });
     
     return (
-        <group ref={groupRef} position={[0, 1, 0]}>
-            {/* The inner group is used for rotation, so it pivots around its center */}
-            <group ref={playerModelRef} rotation={[0, Math.PI, 0]}>
-                 <PlayerModel scale={1} colors={skin.colors} />
+        <group ref={groupRef} position={[0, GROUND_Y, 0]}>
+            <group ref={playerModelRef} position={[0, MODEL_PIVOT_Y, 0]} rotation={[0, Math.PI, 0]}>
+                 <PlayerModel
+                    position={MODEL_POSITION}
+                    scale={0.82}
+                    colors={skin.colors}
+                    motion={active && !playerState.isFlipping && !playerState.isSliding ? 'run' : 'idle'}
+                    reducedMotion={settings.reducedMotion}
+                 />
             </group>
 
             {/* Lights for powerups */}
@@ -119,7 +127,7 @@ export const Player3D: React.FC<Player3DProps> = ({ playerState, skin, powerUps,
 
             {/* Power-up effects are attached to the main group */}
             {isInvincible && (
-                <mesh ref={shieldRef} >
+                <mesh ref={shieldRef} position={[0, 1.28, 0]} scale={[1, 0.9, 0.82]}>
                     <sphereGeometry args={[1.6, 32, 32]} />
                     <meshStandardMaterial 
                         color="#00ffff" 
@@ -131,9 +139,9 @@ export const Player3D: React.FC<Player3DProps> = ({ playerState, skin, powerUps,
                         depthWrite={false}
                     />
                 </mesh>
-            )}
+             )}
              {isSpeedBoosted && (
-                <mesh ref={speedTrailRef} position={[0, 0.5, 2.5]} rotation={[Math.PI / 2, 0, 0]}>
+                <mesh ref={speedTrailRef} position={[0, 0.85, 2.5]} rotation={[Math.PI / 2, 0, 0]}>
                     <coneGeometry args={[0.5, 5, 8]} />
                      <meshStandardMaterial 
                         color="#fde047" 

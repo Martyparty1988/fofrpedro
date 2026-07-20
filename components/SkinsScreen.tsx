@@ -1,6 +1,6 @@
 import React from 'react';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls } from '@react-three/drei';
+import { ContactShadows, OrbitControls } from '@react-three/drei';
 import { Skin } from '../types';
 import { Button } from './Button';
 import { PlayerModel } from '../constants/assets';
@@ -12,6 +12,8 @@ interface SkinsScreenProps {
     onBack: () => void;
 }
 
+const PREVIEW_MODEL_POSITION: [number, number, number] = [0, -1.48, 0];
+
 export const SkinsScreen: React.FC<SkinsScreenProps> = ({ skins, selectedSkin, onSelectSkin, onBack }) => (
     <div className="safe-screen absolute inset-0 z-20 flex flex-col items-center justify-start overflow-y-auto glassmorphism screen-enter md:justify-center">
         <h2 className="mt-4 mb-4 text-center text-3xl font-black text-white neon-text sm:text-5xl md:mt-0">VYBER VZHLED</h2>
@@ -20,18 +22,25 @@ export const SkinsScreen: React.FC<SkinsScreenProps> = ({ skins, selectedSkin, o
             <div className="h-64 w-full sm:h-80">
                 <Canvas
                     aria-label={`3D náhled vzhledu ${selectedSkin.name}`}
+                    shadows
                     dpr={[1, 1.5]}
-                    camera={{ fov: 42, position: [0, 1.2, 5.5] }}
+                    camera={{ fov: 38, position: [0, 0.65, 6.2] }}
                     gl={{ antialias: false, powerPreference: 'high-performance' }}
                     fallback={<div className="grid h-full place-items-center text-gray-400">3D náhled není dostupný.</div>}
                 >
-                    <color attach="background" args={['#050510']} />
-                    <ambientLight intensity={1.2} />
-                    <directionalLight position={[4, 6, 5]} intensity={2.5} color="#67e8f9" />
-                    <pointLight position={[-4, 2, 3]} intensity={25} color="#f0abfc" />
-                    <PlayerModel position={[0, -1.25, 0]} scale={1.25} colors={selectedSkin.colors} />
+                    <color attach="background" args={['#060b14']} />
+                    <hemisphereLight color="#b8d6ff" groundColor="#130d1d" intensity={1.4} />
+                    <directionalLight castShadow position={[4, 7, 5]} intensity={2.8} color="#dcecff" />
+                    <pointLight position={[-4, 2, 3]} intensity={22} color="#f0abfc" />
+                    <pointLight position={[4, 1, -2]} intensity={18} color="#67e8f9" />
+                    <PlayerModel position={PREVIEW_MODEL_POSITION} scale={1} colors={selectedSkin.colors} motion="idle" />
+                    <ContactShadows position={[0, -1.47, 0]} opacity={0.58} scale={8} blur={2.4} far={4.5} frames={1} />
+                    <mesh position={[0, -1.5, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+                        <circleGeometry args={[3.5, 48]} />
+                        <meshStandardMaterial color="#101722" roughness={0.58} metalness={0.42} />
+                    </mesh>
                     <OrbitControls
-                        target={[0, 0.1, 0]}
+                        target={[0, 0.05, 0]}
                         enablePan={false}
                         minPolarAngle={Math.PI / 3}
                         maxPolarAngle={Math.PI / 1.8}
