@@ -2,7 +2,6 @@ import React, { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { GameEffect } from '../../types';
-import { SpeechBubble3D } from './SpeechBubble3D';
 
 // A more generic particle effect component
 const ParticleBurst: React.FC<{
@@ -96,8 +95,6 @@ export const EffectsManager: React.FC<EffectsManagerProps> = ({ effects }) => {
                          return <ParticleBurst key={effect.id} position={effect.position} color={"#f97316"} count={20} size={0.2} duration={0.6} speed={12} />;
                     case 'damage':
                          return <ParticleBurst key={effect.id} position={effect.position} color={"#ff4400"} count={20} size={0.2} duration={0.6} speed={12} />;
-                    case 'speech-bubble':
-                         return effect.text ? <SpeechBubble3D key={effect.id} text={effect.text} position={effect.position} duration={3} /> : null;
                     default:
                         return null;
                 }

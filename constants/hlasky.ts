@@ -1,50 +1,49 @@
 export const hlasky = {
   "start": [
-    "Na startu s absťákem – Pedro nikdy nečeká na náhradní díly.",
-    "Píchni to do žíly, teď se běží o život!",
-    "Zadlužený až po uši, Pedro dneska neběží, Pedro zdrhá!"
+    "Dluhy za zády. Pedro vyráží.",
+    "Praha nespí. Pedro taky ne.",
+    "Žádný plán. Jen tempo a útěk."
   ],
   "jump": [
-    "Skáču přes fetky jak přes kaluže krve v podchodu.",
-    "Ještě jeden skok a vyhrávám olympiádu bezdomovců.",
-    "Takhle vysoko jsem byl naposledy po třetí lajně."
+    "Čistý skok. Špína zůstává dole.",
+    "Praha má překážky. Pedro má tempo.",
+    "Ještě výš a přestává platit gravitace."
   ],
   "frontflip": [
-    "Salto smrti, Pedro style – za mnou jen prázdný stříkačky.",
-    "Flip jak z pervitinový reklamy.",
-    "Přední salto, zadní dluh – příběh každýho večera."
+    "Salto smrti. Pedro style.",
+    "Čistý flip. Špinavá ulice.",
+    "Vzduchem elegantně. Dluhy běží dál."
   ],
   "slide": [
-    "Skluzem pod lavičkou, kde voní zima a beznaděj.",
-    "Kloužu jak igelitka po metru, když se roztrhne dávka.",
-    "Podlejzám všechno, co není přivařený k zemi – včetně morálky."
+    "Nízko pod překážkou. Vysoko nad morálkou.",
+    "Čistý skluz. Žádná ztráta tempa.",
+    "Praha tlačí. Pedro podlézá."
   ],
   "collision": [
-    "Au, narazil jsem do feťáka, co už nezvládl další round.",
-    "Polda mě chytl? Zas mě čeká povinný detox a tři výtky od mámy.",
-    "Srážka s realitou, to bolí víc než studený turkey."
+    "Au. Praha právě vrátila úder.",
+    "Srážka s realitou bolí nejvíc.",
+    "Polda skóruje. Pedro běží dál."
   ],
   "gameover": [
-    "Konec pohádky – dneska mě už nikdo nenasbírá.",
-    "Padla, Pedro má poslední trip. Restart?",
-    "Státní zástupce: tentokrát to bude na tvrdo, hochu!"
+    "Konec jízdy. Praha má poslední slovo.",
+    "Pedro padl. Rekord ale zůstává.",
+    "Dneska konečná. Zítra další útěk."
   ],
   "powerup": [
-    "Dávka navíc! Teď běžím rychleji než exekuce po výplatě.",
-    "Tohle nakopnutí bych prodal i svýmu dealerovi.",
-    "Power-up: mám v kapse víc než ministerstvo na celý rok."
+    "Čistý boost. Špinavá práce.",
+    "Turbo zapnuto. Exekuce nestíhá.",
+    "Teď mám víc energie než rozumu."
   ],
   "pedroultimate": [
-    "Jsem rychlej jak průjem po žloutence!",
-    "Takhle se frčí do parlamentu!",
-    "Pedro na Hrad! Sníh pro všechny!",
-    "Nepotřebuju imunitu, mám rychlost!",
-    "Vláda padá, Pedro stoupá!"
+    "Pedro na Hrad. Tempo už má.",
+    "Takhle se frčí do parlamentu.",
+    "Imunitu nepotřebuju. Mám náskok.",
+    "Vláda padá. Pedro zrychluje."
   ],
   "easteregg": [
-    "Bonus: našel jsi starou lžíci – dneska jedeš VIP.",
-    "Pedro unlockuje squat boss fight: hlavní závislák roku.",
-    "Překročil jsi hranici – od teď už tě poznává i městská policie."
+    "Tajná zkratka. Praha se nedívala.",
+    "Bonus odemčen. Pedro jede VIP.",
+    "Odteď tě poznává i městská policie."
   ]
 };
 
