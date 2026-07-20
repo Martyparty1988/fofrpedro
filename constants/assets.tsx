@@ -281,4 +281,8 @@ const PlayerModelComponent: React.FC<PlayerModelProps> = ({
     );
 };
 
-export const PlayerModel = React.memo(PlayerModelComponent);
+export const ProceduralPlayerModel = React.memo(PlayerModelComponent);
+
+// Kept as a compatibility export for any downstream consumer that still uses
+// the original name. New game surfaces render RealisticRunner instead.
+export const PlayerModel = ProceduralPlayerModel;

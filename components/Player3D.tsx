@@ -2,7 +2,7 @@ import React, { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { PlayerState, Skin, PowerUpState, GameObjectType, Settings } from '../types';
-import { PlayerModel } from '../constants/assets';
+import { RealisticRunner } from './game3d/RealisticRunner';
 
 interface Player3DProps {
     playerState: PlayerState;
@@ -112,7 +112,7 @@ export const Player3D: React.FC<Player3DProps> = ({ playerState, skin, powerUps,
     return (
         <group ref={groupRef} position={[0, GROUND_Y, 0]}>
             <group ref={playerModelRef} position={[0, MODEL_PIVOT_Y, 0]} rotation={[0, Math.PI, 0]}>
-                 <PlayerModel
+                 <RealisticRunner
                     position={MODEL_POSITION}
                     scale={0.82}
                     colors={skin.colors}

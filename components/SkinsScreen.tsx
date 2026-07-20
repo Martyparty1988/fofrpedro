@@ -3,7 +3,7 @@ import { Canvas } from '@react-three/fiber';
 import { ContactShadows, OrbitControls } from '@react-three/drei';
 import { Skin } from '../types';
 import { Button } from './Button';
-import { PlayerModel } from '../constants/assets';
+import { RealisticRunner } from './game3d/RealisticRunner';
 
 interface SkinsScreenProps {
     skins: Skin[];
@@ -33,7 +33,7 @@ export const SkinsScreen: React.FC<SkinsScreenProps> = ({ skins, selectedSkin, o
                     <directionalLight castShadow position={[4, 7, 5]} intensity={2.8} color="#dcecff" />
                     <pointLight position={[-4, 2, 3]} intensity={22} color="#f0abfc" />
                     <pointLight position={[4, 1, -2]} intensity={18} color="#67e8f9" />
-                    <PlayerModel position={PREVIEW_MODEL_POSITION} scale={1} colors={selectedSkin.colors} motion="idle" />
+                    <RealisticRunner position={PREVIEW_MODEL_POSITION} scale={1} colors={selectedSkin.colors} motion="idle" />
                     <ContactShadows position={[0, -1.47, 0]} opacity={0.58} scale={8} blur={2.4} far={4.5} frames={1} />
                     <mesh position={[0, -1.5, 0]} rotation={[-Math.PI / 2, 0, 0]}>
                         <circleGeometry args={[3.5, 48]} />
