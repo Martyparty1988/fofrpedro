@@ -2,17 +2,18 @@ import { GameObjectType } from '../types';
 
 export const INITIAL_GAME_SPEED = 15;
 export const MAX_GAME_SPEED = 50;
-export const SPEED_INCREASE_RATE = 0.005;
+export const SPEED_INCREASE_RATE = 0.3; // units per second
 
 export const INITIAL_HEALTH = 3;
 export const MAX_HEALTH = 5;
 
-export const FLIP_DURATION = 30; // frames
-export const FLIP_COOLDOWN = 54; // frames (~0.9s at 60fps)
+export const FLIP_DURATION = 0.5; // seconds
+export const FLIP_COOLDOWN = 0.9; // seconds after the animation
 export const FLIP_SCORE_MULTIPLIER = 3;
 
-export const SLIDE_DURATION = 30; // frames (0.5s at 60fps)
-export const SLIDE_COOLDOWN = 30; // frames
+export const SLIDE_DURATION = 0.5; // seconds
+export const SLIDE_COOLDOWN = 0.5; // seconds after the animation
+export const DAMAGE_INVULNERABILITY = 1; // seconds
 
 export const PLAYER_BOUNDS = { width: 0.8, height: 1.8, depth: 0.5 };
 export const PLAYER_SLIDE_BOUNDS = { width: 0.8, height: 0.8, depth: 1.5 };
@@ -27,10 +28,14 @@ export const OBJECT_DEFINITIONS: Record<GameObjectType, { width: number, height:
     [GameObjectType.Barikada]: { width: 2.8, height: 1.2, depth: 0.8 },
 };
 
-export const POWERUP_DURATION = 300; // 5 seconds at 60fps
+export const POWERUP_DURATION = 5; // seconds
 export const EFFECT_LIFESPAN = 1000; // 1 second in ms
 
-export const Z_SPAWN_POSITION = -150;
+export const Z_SPAWN_POSITION = -80;
 export const SPAWN_INTERVAL = 25;
 
 export const LANE_WIDTH = 4;
+
+export const FIXED_TIMESTEP = 1 / 60;
+export const MAX_FRAME_DELTA = 0.05;
+export const MAX_CATCH_UP_STEPS = 3;

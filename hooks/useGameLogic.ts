@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { GameState, GameObject, Lane, PlayerState, GameObjectType, PowerUpState, GameEffect } from '../types';
+import { GameState, GameObject, Lane, GameObjectType, GameEffect, Settings } from '../types';
 import { audioManager } from '../lib/audioManager';
-import { Settings } from '../types';
 import {
     INITIAL_GAME_SPEED,
     MAX_GAME_SPEED,
@@ -13,6 +12,7 @@ import {
     FLIP_SCORE_MULTIPLIER,
     SLIDE_DURATION,
     SLIDE_COOLDOWN,
+    DAMAGE_INVULNERABILITY,
     PLAYER_BOUNDS,
     PLAYER_SLIDE_BOUNDS,
     OBJECT_DEFINITIONS,
@@ -21,441 +21,477 @@ import {
     Z_SPAWN_POSITION,
     SPAWN_INTERVAL,
     LANE_WIDTH,
+    FIXED_TIMESTEP,
+    MAX_FRAME_DELTA,
+    MAX_CATCH_UP_STEPS,
 } from '../constants/gameConstants';
 import { hlasky, HlaskaCategory } from '../constants/hlasky';
+import { advanceTimer, resolveObstacleCollision } from '../lib/gameRules';
 
-
-// --- New Spawning Pattern Definitions ---
-
-// A pattern is a description of what to spawn in each lane.
-// `null` means the lane is available for collectibles.
 type ObstaclePattern = (GameObjectType | null)[];
 
 interface PatternDefinition {
     pattern: ObstaclePattern;
     minScore: number;
-    weight: number; // How likely is this pattern to be chosen relative to others
+    weight: number;
 }
 
-// Patterns become available as the player's score increases.
 const PATTERNS: PatternDefinition[] = [
-    // Score 0+ (Easy)
     { pattern: [GameObjectType.Policajt, null, null], minScore: 0, weight: 10 },
     { pattern: [null, GameObjectType.Policajt, null], minScore: 0, weight: 10 },
     { pattern: [null, null, GameObjectType.Policajt], minScore: 0, weight: 10 },
-
-    // Score 2000+
     { pattern: [GameObjectType.Auto, null, null], minScore: 2000, weight: 8 },
     { pattern: [null, GameObjectType.Auto, null], minScore: 2000, weight: 8 },
     { pattern: [null, null, GameObjectType.Auto], minScore: 2000, weight: 8 },
-
-    // Score 5000+ (Medium)
     { pattern: [GameObjectType.Policajt, GameObjectType.Policajt, null], minScore: 5000, weight: 5 },
     { pattern: [null, GameObjectType.Policajt, GameObjectType.Policajt], minScore: 5000, weight: 5 },
-    
-    // Score 7000+
     { pattern: [GameObjectType.Policajt, null, GameObjectType.Policajt], minScore: 7000, weight: 4 },
-    
-    // Score 10000+ (Hard)
     { pattern: [GameObjectType.Auto, null, GameObjectType.Policajt], minScore: 10000, weight: 3 },
     { pattern: [GameObjectType.Policajt, null, GameObjectType.Auto], minScore: 10000, weight: 3 },
-    
-    // Score 15000+
-    { pattern: [GameObjectType.Barikada, null, null], minScore: 15000, weight: 5 }, // A single barricade
-    
-    // Score 20000+
+    { pattern: [GameObjectType.Barikada, null, null], minScore: 15000, weight: 5 },
     { pattern: [GameObjectType.Auto, GameObjectType.Auto, null], minScore: 20000, weight: 2 },
     { pattern: [GameObjectType.Policajt, GameObjectType.Auto, GameObjectType.Policajt], minScore: 22000, weight: 1 },
-
-    // Score 25000+ (Expert) - The Wall!
-    { pattern: [GameObjectType.Barikada, GameObjectType.Barikada, GameObjectType.Barikada], minScore: 25000, weight: 2},
+    { pattern: [GameObjectType.Barikada, GameObjectType.Barikada, GameObjectType.Barikada], minScore: 25000, weight: 2 },
 ];
 
-
-function createInitialState(): GameState {
-    return {
-        status: 'playing',
-        score: 0,
-        gameSpeed: INITIAL_GAME_SPEED,
-        player: {
-            lane: Lane.Middle,
-            health: INITIAL_HEALTH,
-            isFlipping: false,
-            flipProgress: 0,
-            flipCooldown: 0,
-            isSliding: false,
-            slideProgress: 0,
-            slideCooldown: 0,
-        },
-        gameObjects: [],
-        activePowerUps: [],
-        effects: [],
-    };
-}
+export const createInitialState = (): GameState => ({
+    status: 'playing',
+    score: 0,
+    gameSpeed: INITIAL_GAME_SPEED,
+    player: {
+        lane: Lane.Middle,
+        health: INITIAL_HEALTH,
+        damageCooldown: 0,
+        isFlipping: false,
+        flipProgress: 0,
+        flipCooldown: 0,
+        isSliding: false,
+        slideProgress: 0,
+        slideCooldown: 0,
+    },
+    gameObjects: [],
+    activePowerUps: [],
+    effects: [],
+});
 
 export const useGameLogic = (onGameOver: (score: number) => void, settings: Settings) => {
     const [gameState, setGameState] = useState<GameState>(() => createInitialState());
+    const gameStateRef = useRef(gameState);
     const gameLoopRef = useRef<number | null>(null);
-    const lastTimeRef = useRef<number>(0);
+    const lastTimeRef = useRef(0);
+    const accumulatorRef = useRef(0);
     const distanceSinceLastSpawn = useRef(0);
     const lastUsedHlasky = useRef<string[]>([]);
     const scoreMilestone = useRef(10000);
 
+    const commitGameState = useCallback((nextState: GameState) => {
+        gameStateRef.current = nextState;
+        setGameState(nextState);
+    }, []);
+
     const addSpeechBubble = useCallback((state: GameState, category: HlaskaCategory): GameState => {
-        // Prevent spamming bubbles
-        if (state.effects.some(e => e.type === 'speech-bubble')) {
-            return state;
-        }
+        if (state.effects.some(effect => effect.type === 'speech-bubble')) return state;
 
         const lines = hlasky[category];
-        if (!lines || lines.length === 0) return state;
+        if (!lines?.length) return state;
 
-        // Filter out recently used lines to avoid repetition
         const availableLines = lines.filter(line => !lastUsedHlasky.current.includes(line));
-        const linesToUse = availableLines.length > 5 ? availableLines : lines; // Use filtered list if it's large enough
-        
+        const linesToUse = availableLines.length > 0 ? availableLines : lines;
         const text = linesToUse[Math.floor(Math.random() * linesToUse.length)];
 
-        // Update recently used list
         lastUsedHlasky.current.push(text);
-        if (lastUsedHlasky.current.length > 5) { // Keep history of last 5 quotes
-            lastUsedHlasky.current.shift();
-        }
+        if (lastUsedHlasky.current.length > 5) lastUsedHlasky.current.shift();
 
+        const createdAt = Date.now();
         const newEffect: GameEffect = {
-            id: Date.now() + Math.random(),
+            id: createdAt + Math.random(),
             type: 'speech-bubble',
-            position: [state.player.lane * LANE_WIDTH, 3.5, 0], // Lowered position for better visibility
-            createdAt: Date.now(),
-            text: text,
+            position: [state.player.lane * LANE_WIDTH, 3.5, 0],
+            createdAt,
+            text,
         };
-        
+
         return { ...state, effects: [...state.effects, newEffect] };
     }, []);
 
     useEffect(() => {
-        setGameState(prev => addSpeechBubble(prev, 'start'));
-    }, [addSpeechBubble]);
+        commitGameState(addSpeechBubble(gameStateRef.current, 'start'));
+    }, [addSpeechBubble, commitGameState]);
 
     const resetGame = useCallback(() => {
-        setGameState(createInitialState());
         distanceSinceLastSpawn.current = 0;
         lastUsedHlasky.current = [];
         scoreMilestone.current = 10000;
-    }, []);
+        lastTimeRef.current = performance.now();
+        accumulatorRef.current = 0;
+        commitGameState(addSpeechBubble(createInitialState(), 'start'));
+    }, [addSpeechBubble, commitGameState]);
 
     const pauseGame = useCallback(() => {
-        setGameState(prev => ({ ...prev, status: 'paused' }));
-    }, []);
-    
+        const current = gameStateRef.current;
+        if (current.status === 'playing') {
+            commitGameState({ ...current, status: 'paused' });
+        }
+    }, [commitGameState]);
+
     const resumeGame = useCallback(() => {
-        setGameState(prev => ({ ...prev, status: 'playing' }));
-        lastTimeRef.current = performance.now();
-        gameLoopRef.current = requestAnimationFrame(gameLoop);
-    }, []);
+        const current = gameStateRef.current;
+        if (current.status === 'paused') {
+            lastTimeRef.current = performance.now();
+            accumulatorRef.current = 0;
+            commitGameState({ ...current, status: 'playing' });
+        }
+    }, [commitGameState]);
 
     const movePlayer = useCallback((direction: 'left' | 'right') => {
-        if (gameState.status !== 'playing') return;
-        setGameState(prev => {
-            let newLane = prev.player.lane;
-            if (direction === 'left' && newLane > Lane.Left) {
-                newLane--;
-            } else if (direction === 'right' && newLane < Lane.Right) {
-                newLane++;
-            }
-            return { ...prev, player: { ...prev.player, lane: newLane } };
+        const current = gameStateRef.current;
+        if (current.status !== 'playing') return;
+
+        let newLane = current.player.lane;
+        if (direction === 'left' && newLane > Lane.Left) newLane--;
+        if (direction === 'right' && newLane < Lane.Right) newLane++;
+        if (newLane === current.player.lane) return;
+
+        commitGameState({
+            ...current,
+            player: { ...current.player, lane: newLane },
         });
-    }, [gameState.status]);
+    }, [commitGameState]);
 
     const triggerFlip = useCallback(() => {
-        if (gameState.status !== 'playing' || gameState.player.isFlipping || gameState.player.isSliding || gameState.player.flipCooldown > 0) return;
-        
+        const current = gameStateRef.current;
+        const player = current.player;
+        if (
+            current.status !== 'playing' ||
+            player.isFlipping ||
+            player.isSliding ||
+            player.flipCooldown > 0
+        ) return;
+
         audioManager.playFlipSound();
-        setGameState(prev => {
-            let newState = {
-                ...prev,
-                player: { ...prev.player, isFlipping: true, flipProgress: 0, flipCooldown: FLIP_COOLDOWN + FLIP_DURATION }
-            };
-            const category = settings.reducedMotion ? 'jump' : 'frontflip';
-            return addSpeechBubble(newState, category);
-        });
-    }, [gameState.status, gameState.player, settings.reducedMotion, addSpeechBubble]);
-    
+        const nextState: GameState = {
+            ...current,
+            player: {
+                ...player,
+                isFlipping: true,
+                flipProgress: 0,
+                flipCooldown: FLIP_COOLDOWN + FLIP_DURATION,
+            },
+        };
+        commitGameState(addSpeechBubble(nextState, settings.reducedMotion ? 'jump' : 'frontflip'));
+    }, [addSpeechBubble, commitGameState, settings.reducedMotion]);
+
     const triggerSlide = useCallback(() => {
-        if (gameState.status !== 'playing' || gameState.player.isSliding || gameState.player.isFlipping || gameState.player.slideCooldown > 0) return;
-        
+        const current = gameStateRef.current;
+        const player = current.player;
+        if (
+            current.status !== 'playing' ||
+            player.isSliding ||
+            player.isFlipping ||
+            player.slideCooldown > 0
+        ) return;
+
         audioManager.playSlideSound();
-        setGameState(prev => {
-            let newState = {
-                ...prev,
-                player: { ...prev.player, isSliding: true, slideProgress: 0, slideCooldown: SLIDE_COOLDOWN + SLIDE_DURATION }
-            };
-            return addSpeechBubble(newState, 'slide');
-        });
-    }, [gameState.status, gameState.player, addSpeechBubble]);
+        const nextState: GameState = {
+            ...current,
+            player: {
+                ...player,
+                isSliding: true,
+                slideProgress: 0,
+                slideCooldown: SLIDE_COOLDOWN + SLIDE_DURATION,
+            },
+        };
+        commitGameState(addSpeechBubble(nextState, 'slide'));
+    }, [addSpeechBubble, commitGameState]);
 
-
-    const spawnGameObjects = (state: GameState): GameState => {
-        if (distanceSinceLastSpawn.current < SPAWN_INTERVAL) {
-            return state;
-        }
+    const spawnGameObjects = useCallback((state: GameState): GameState => {
+        if (distanceSinceLastSpawn.current < SPAWN_INTERVAL) return state;
         distanceSinceLastSpawn.current = 0;
 
         const newObjects: GameObject[] = [];
         const lanes: Lane[] = [Lane.Left, Lane.Middle, Lane.Right];
-        const availableLanesForCollectibles: Lane[] = [...lanes];
-
-        // --- 1. Select a pattern based on score ---
-        const eligiblePatterns = PATTERNS.filter(p => state.score >= p.minScore);
-        const totalWeight = eligiblePatterns.reduce((sum, p) => sum + p.weight, 0);
+        const availableLanesForCollectibles = [...lanes];
+        const eligiblePatterns = PATTERNS.filter(pattern => state.score >= pattern.minScore);
+        const totalWeight = eligiblePatterns.reduce((sum, pattern) => sum + pattern.weight, 0);
         let randomWeight = Math.random() * totalWeight;
-        const chosenPatternDef = eligiblePatterns.find(p => {
-            randomWeight -= p.weight;
+        const chosenDefinition = eligiblePatterns.find(pattern => {
+            randomWeight -= pattern.weight;
             return randomWeight <= 0;
-        }) || eligiblePatterns[eligiblePatterns.length - 1]; // Fallback to last pattern
+        }) ?? eligiblePatterns[eligiblePatterns.length - 1];
 
-        // --- 2. Shuffle pattern and spawn obstacles ---
-        const chosenPattern = [...chosenPatternDef.pattern]; // Create a mutable copy
-        // Fisher-Yates shuffle for variety
-        for (let i = chosenPattern.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [chosenPattern[i], chosenPattern[j]] = [chosenPattern[j], chosenPattern[i]];
+        const chosenPattern = [...chosenDefinition.pattern];
+        for (let index = chosenPattern.length - 1; index > 0; index--) {
+            const randomIndex = Math.floor(Math.random() * (index + 1));
+            [chosenPattern[index], chosenPattern[randomIndex]] = [chosenPattern[randomIndex], chosenPattern[index]];
         }
-        
-        // Handle Barikada special rule: it prevents collectibles from spawning nearby
+
         const hasBarikada = chosenPattern.some(type => type === GameObjectType.Barikada);
-        if (hasBarikada) {
-            availableLanesForCollectibles.length = 0;
-        }
+        if (hasBarikada) availableLanesForCollectibles.length = 0;
 
         chosenPattern.forEach((type, index) => {
-            if (type !== null) {
-                const lane = lanes[index];
-                const def = OBJECT_DEFINITIONS[type];
-                newObjects.push({
-                    id: Date.now() + Math.random(),
-                    type,
-                    lane,
-                    position: [lane * LANE_WIDTH, def.height / 2, Z_SPAWN_POSITION],
-                    ...def,
-                });
+            if (type === null) return;
 
-                // If not a Barikada wave, mark this lane as occupied for collectibles
-                if (!hasBarikada) {
-                    const laneIndex = availableLanesForCollectibles.indexOf(lane);
-                    if (laneIndex > -1) {
-                        availableLanesForCollectibles.splice(laneIndex, 1);
-                    }
-                }
+            const lane = lanes[index];
+            const definition = OBJECT_DEFINITIONS[type];
+            newObjects.push({
+                id: Date.now() + Math.random(),
+                type,
+                lane,
+                position: [lane * LANE_WIDTH, definition.height / 2, Z_SPAWN_POSITION],
+                ...definition,
+            });
+
+            if (!hasBarikada) {
+                const laneIndex = availableLanesForCollectibles.indexOf(lane);
+                if (laneIndex >= 0) availableLanesForCollectibles.splice(laneIndex, 1);
             }
         });
 
-        // --- 3. Spawn collectibles/powerups in remaining empty lanes ---
-        const numCollectibles = Math.floor(Math.random() * (availableLanesForCollectibles.length + 1));
-        const shuffledCollectibleLanes = availableLanesForCollectibles.sort(() => 0.5 - Math.random());
+        const shuffledLanes = [...availableLanesForCollectibles];
+        for (let index = shuffledLanes.length - 1; index > 0; index--) {
+            const randomIndex = Math.floor(Math.random() * (index + 1));
+            [shuffledLanes[index], shuffledLanes[randomIndex]] = [shuffledLanes[randomIndex], shuffledLanes[index]];
+        }
+        const collectibleCount = Math.floor(Math.random() * (shuffledLanes.length + 1));
 
-        for (let i = 0; i < numCollectibles; i++) {
-            const lane = shuffledCollectibleLanes[i];
-            
-            const rand = Math.random();
-            let collectibleType: GameObjectType;
-            if (rand < 0.7) collectibleType = GameObjectType.Lajna;
-            else if (rand < 0.85) collectibleType = GameObjectType.Cevko;
-            else if (rand < 0.95) collectibleType = GameObjectType.SpeedBoost;
-            else collectibleType = GameObjectType.Invincibility;
-            
-            const def = OBJECT_DEFINITIONS[collectibleType];
+        for (let index = 0; index < collectibleCount; index++) {
+            const lane = shuffledLanes[index];
+            const randomValue = Math.random();
+            const collectibleType = randomValue < 0.7
+                ? GameObjectType.Lajna
+                : randomValue < 0.85
+                    ? GameObjectType.Cevko
+                    : randomValue < 0.95
+                        ? GameObjectType.SpeedBoost
+                        : GameObjectType.Invincibility;
+            const definition = OBJECT_DEFINITIONS[collectibleType];
+
             newObjects.push({
                 id: Date.now() + Math.random(),
                 type: collectibleType,
                 lane,
                 position: [lane * LANE_WIDTH, 1, Z_SPAWN_POSITION],
-                ...def,
+                ...definition,
             });
         }
-        
-        return { ...state, gameObjects: [...state.gameObjects, ...newObjects] };
-    };
 
-    const checkCollisions = (state: GameState): GameState => {
-        let newState = { ...state };
-        const currentPlayerBounds = newState.player.isSliding ? PLAYER_SLIDE_BOUNDS : PLAYER_BOUNDS;
-        const playerPos = { x: newState.player.lane * LANE_WIDTH, y: currentPlayerBounds.height / 2, z: 0 };
-        const isInvincible = newState.activePowerUps.some(p => p.type === GameObjectType.Invincibility);
+        return { ...state, gameObjects: [...state.gameObjects, ...newObjects] };
+    }, []);
+
+    const checkCollisions = useCallback((state: GameState): GameState => {
+        let newState: GameState = {
+            ...state,
+            player: { ...state.player },
+            activePowerUps: [...state.activePowerUps],
+            effects: [...state.effects],
+        };
+        const playerBounds = newState.player.isSliding ? PLAYER_SLIDE_BOUNDS : PLAYER_BOUNDS;
+        const playerPosition = {
+            x: newState.player.lane * LANE_WIDTH,
+            y: playerBounds.height / 2,
+            z: 0,
+        };
+        const isInvincible = newState.activePowerUps.some(powerUp => powerUp.type === GameObjectType.Invincibility);
         const objectsToKeep: GameObject[] = [];
         const newEffects: GameEffect[] = [];
+        const createdAt = Date.now();
 
-        for (const obj of newState.gameObjects) {
-            const dx = Math.abs(playerPos.x - obj.position[0]);
-            const dy = Math.abs(playerPos.y - obj.position[1]);
-            const dz = Math.abs(playerPos.z - obj.position[2]);
+        for (const object of newState.gameObjects) {
+            const collisionX = Math.abs(playerPosition.x - object.position[0]) * 2 < playerBounds.width + object.width;
+            const collisionY = Math.abs(playerPosition.y - object.position[1]) * 2 < playerBounds.height + object.height;
+            const collisionZ = Math.abs(playerPosition.z - object.position[2]) * 2 < playerBounds.depth + object.depth;
 
-            const collisionX = dx * 2 < (currentPlayerBounds.width + obj.width);
-            const collisionY = dy * 2 < (currentPlayerBounds.height + obj.height);
-            const collisionZ = dz * 2 < (currentPlayerBounds.depth + obj.depth);
+            if (!collisionX || !collisionY || !collisionZ) {
+                objectsToKeep.push(object);
+                continue;
+            }
 
-            if (collisionX && collisionY && collisionZ) {
-                let shouldKeep = false;
-                switch(obj.type) {
-                    case GameObjectType.Lajna:
-                        audioManager.playCollectSound();
-                        newState.score += (OBJECT_DEFINITIONS[obj.type].score || 0) * (newState.player.isFlipping ? FLIP_SCORE_MULTIPLIER : 1);
-                        newEffects.push({ id: obj.id, type: 'lajna-collect', position: obj.position, createdAt: Date.now() });
-                        break;
-                    case GameObjectType.Cevko:
-                        audioManager.playCollectSound();
-                        newState.player.health = Math.min(MAX_HEALTH, newState.player.health + 1);
-                        newEffects.push({ id: obj.id, type: 'cevko-collect', position: obj.position, createdAt: Date.now() });
-                        break;
-                    case GameObjectType.SpeedBoost:
-                    case GameObjectType.Invincibility:
-                        audioManager.playPowerUpSound();
-                        newState = addSpeechBubble(newState, 'powerup');
-                        newState.activePowerUps = newState.activePowerUps.filter(p => p.type !== obj.type);
-                        newState.activePowerUps.push({ type: obj.type, timeLeft: POWERUP_DURATION });
-                        newEffects.push({ id: obj.id, type: 'powerup-collect', position: obj.position, createdAt: Date.now() });
-                        break;
-                    default: // Obstacles
-                        if (newState.player.isFlipping) {
-                            audioManager.playDestroySound();
-                            newState.score += 500;
-                        } else if (newState.player.isSliding || isInvincible) {
-                            shouldKeep = true;
-                        } else {
-                            audioManager.playDamageSound();
-                            newState = addSpeechBubble(newState, 'collision');
-                            if(settings.haptics && navigator.vibrate) navigator.vibrate(200);
-                            newState.player.health -= 1;
-                            newEffects.push({ id: obj.id, type: 'damage', position: [playerPos.x, playerPos.y, playerPos.z], createdAt: Date.now() });
-                            shouldKeep = true;
+            switch (object.type) {
+                case GameObjectType.Lajna:
+                    audioManager.playCollectSound();
+                    newState.score += (OBJECT_DEFINITIONS[object.type].score ?? 0)
+                        * (newState.player.isFlipping ? FLIP_SCORE_MULTIPLIER : 1);
+                    newEffects.push({ id: object.id, type: 'lajna-collect', position: object.position, createdAt });
+                    break;
+                case GameObjectType.Cevko:
+                    audioManager.playCollectSound();
+                    newState.player.health = Math.min(MAX_HEALTH, newState.player.health + 1);
+                    newEffects.push({ id: object.id, type: 'cevko-collect', position: object.position, createdAt });
+                    break;
+                case GameObjectType.SpeedBoost:
+                case GameObjectType.Invincibility:
+                    audioManager.playPowerUpSound();
+                    newState = addSpeechBubble(newState, 'powerup');
+                    newState.activePowerUps = newState.activePowerUps.filter(powerUp => powerUp.type !== object.type);
+                    newState.activePowerUps.push({ type: object.type, timeLeft: POWERUP_DURATION });
+                    newEffects.push({ id: object.id, type: 'powerup-collect', position: object.position, createdAt });
+                    break;
+                default: {
+                    const outcome = resolveObstacleCollision({
+                        isFlipping: newState.player.isFlipping,
+                        isSliding: newState.player.isSliding,
+                        isInvincible,
+                        damageCooldown: newState.player.damageCooldown,
+                    });
+
+                    if (outcome === 'pass') {
+                        objectsToKeep.push(object);
+                    } else if (outcome === 'destroy') {
+                        audioManager.playDestroySound();
+                        newState.score += 500;
+                        newEffects.push({ id: object.id, type: 'obstacle-destroy', position: object.position, createdAt });
+                    } else if (outcome === 'hit') {
+                        audioManager.playDamageSound();
+                        newState = addSpeechBubble(newState, 'collision');
+                        newState.player.health = Math.max(0, newState.player.health - 1);
+                        newState.player.damageCooldown = DAMAGE_INVULNERABILITY;
+                        newEffects.push({
+                            id: object.id,
+                            type: 'damage',
+                            position: [playerPosition.x, playerPosition.y, playerPosition.z],
+                            createdAt,
+                        });
+                        if (settings.haptics && typeof navigator !== 'undefined' && navigator.vibrate) {
+                            navigator.vibrate(200);
                         }
-                        break;
+                    }
+                    break;
                 }
-
-                if (shouldKeep) {
-                    objectsToKeep.push(obj);
-                }
-            } else {
-                objectsToKeep.push(obj);
             }
         }
+
         newState.gameObjects = objectsToKeep;
         newState.effects = [...newState.effects, ...newEffects];
         return newState;
-    };
-    
+    }, [addSpeechBubble, settings.haptics]);
+
     const gameLoop = useCallback((time: number) => {
+        const currentState = gameStateRef.current;
+        if (currentState.status !== 'playing') return;
+
         if (lastTimeRef.current === 0) {
             lastTimeRef.current = time;
             gameLoopRef.current = requestAnimationFrame(gameLoop);
             return;
         }
 
-        const deltaTime = (time - lastTimeRef.current) / 1000.0;
+        const elapsed = Math.min((time - lastTimeRef.current) / 1000, MAX_FRAME_DELTA);
         lastTimeRef.current = time;
-        const now = Date.now();
+        accumulatorRef.current = Math.min(accumulatorRef.current + elapsed, MAX_FRAME_DELTA);
 
-        setGameState(prev => {
-            if (prev.status !== 'playing') {
-                return prev;
-            }
+        const availableSteps = Math.floor(accumulatorRef.current / FIXED_TIMESTEP);
+        if (availableSteps === 0) {
+            gameLoopRef.current = requestAnimationFrame(gameLoop);
+            return;
+        }
 
-            let newState: GameState = { ...prev, player: {...prev.player}, gameObjects: [...prev.gameObjects], activePowerUps: [...prev.activePowerUps], effects: [...prev.effects] };
+        const stepsToRun = Math.min(availableSteps, MAX_CATCH_UP_STEPS);
+        accumulatorRef.current -= stepsToRun * FIXED_TIMESTEP;
+        let nextState = currentState;
 
-            if (newState.player.health <= 0) {
-                newState.status = 'gameOver';
-                newState = addSpeechBubble(newState, 'gameover');
-                audioManager.playGameOverSound();
-                onGameOver(Math.floor(newState.score));
-                return newState;
-            }
-            
-            // Update timers
-            newState.player.flipCooldown = Math.max(0, newState.player.flipCooldown - 1);
-            newState.player.slideCooldown = Math.max(0, newState.player.slideCooldown - 1);
-            newState.activePowerUps = newState.activePowerUps
-                .map(p => ({ ...p, timeLeft: p.timeLeft - 1 }))
-                .filter(p => p.timeLeft > 0);
-            
-            // Cleanup old effects
-            newState.effects = newState.effects.filter(effect => {
+        for (let step = 0; step < stepsToRun; step++) {
+            const now = Date.now();
+            nextState = {
+                ...nextState,
+                player: { ...nextState.player },
+                gameObjects: [...nextState.gameObjects],
+                activePowerUps: [...nextState.activePowerUps],
+                effects: [...nextState.effects],
+            };
+
+            nextState.player.flipCooldown = advanceTimer(nextState.player.flipCooldown, FIXED_TIMESTEP);
+            nextState.player.slideCooldown = advanceTimer(nextState.player.slideCooldown, FIXED_TIMESTEP);
+            nextState.player.damageCooldown = advanceTimer(nextState.player.damageCooldown, FIXED_TIMESTEP);
+            nextState.activePowerUps = nextState.activePowerUps
+                .map(powerUp => ({ ...powerUp, timeLeft: advanceTimer(powerUp.timeLeft, FIXED_TIMESTEP) }))
+                .filter(powerUp => powerUp.timeLeft > 0);
+            nextState.effects = nextState.effects.filter(effect => {
                 const lifespan = effect.type === 'speech-bubble' ? 3000 : EFFECT_LIFESPAN;
                 return now - effect.createdAt < lifespan;
             });
 
-
-            // Flip logic
-            if (newState.player.isFlipping) {
-                newState.player.flipProgress += 1 / FLIP_DURATION;
-                if (newState.player.flipProgress >= 1) {
-                    newState.player.isFlipping = false;
-                    newState.player.flipProgress = 0;
+            if (nextState.player.isFlipping) {
+                nextState.player.flipProgress = Math.min(1, nextState.player.flipProgress + FIXED_TIMESTEP / FLIP_DURATION);
+                if (nextState.player.flipProgress >= 1) {
+                    nextState.player.isFlipping = false;
+                    nextState.player.flipProgress = 0;
                 }
             }
 
-            // Slide logic
-            if (newState.player.isSliding) {
-                newState.player.slideProgress += 1 / SLIDE_DURATION;
-                if (newState.player.slideProgress >= 1) {
-                    newState.player.isSliding = false;
-                    newState.player.slideProgress = 0;
+            if (nextState.player.isSliding) {
+                nextState.player.slideProgress = Math.min(1, nextState.player.slideProgress + FIXED_TIMESTEP / SLIDE_DURATION);
+                if (nextState.player.slideProgress >= 1) {
+                    nextState.player.isSliding = false;
+                    nextState.player.slideProgress = 0;
                 }
             }
-            
-            // Speed and score
-            const isSpeedBoosted = newState.activePowerUps.some(p => p.type === GameObjectType.SpeedBoost);
-            const currentSpeed = newState.gameSpeed * (isSpeedBoosted ? 1.5 : 1);
 
-            if (newState.gameSpeed < MAX_GAME_SPEED) {
-                newState.gameSpeed += SPEED_INCREASE_RATE;
-            }
-            const scoreMultiplier = newState.player.isFlipping ? FLIP_SCORE_MULTIPLIER : 1;
-            newState.score += deltaTime * currentSpeed * scoreMultiplier;
+            const isSpeedBoosted = nextState.activePowerUps.some(powerUp => powerUp.type === GameObjectType.SpeedBoost);
+            const currentSpeed = nextState.gameSpeed * (isSpeedBoosted ? 1.5 : 1);
+            nextState.gameSpeed = Math.min(MAX_GAME_SPEED, nextState.gameSpeed + SPEED_INCREASE_RATE * FIXED_TIMESTEP);
+            nextState.score += FIXED_TIMESTEP * currentSpeed
+                * (nextState.player.isFlipping ? FLIP_SCORE_MULTIPLIER : 1);
 
-            // Check for score milestone for "ultimate" quote
-            if (newState.score >= scoreMilestone.current) {
-                newState = addSpeechBubble(newState, 'pedroultimate');
-                scoreMilestone.current += 10000; // Set next milestone
+            if (nextState.score >= scoreMilestone.current) {
+                nextState = addSpeechBubble(nextState, 'pedroultimate');
+                scoreMilestone.current += 10000;
             }
 
-            const distanceMoved = currentSpeed * deltaTime;
+            const distanceMoved = currentSpeed * FIXED_TIMESTEP;
             distanceSinceLastSpawn.current += distanceMoved;
-            
-            // Move objects
-            newState.gameObjects = newState.gameObjects
-                .map(obj => ({ ...obj, position: [obj.position[0], obj.position[1], obj.position[2] + distanceMoved] as [number, number, number] }))
-                .filter(obj => obj.position[2] < 20); // Despawn objects behind player
+            nextState.gameObjects = nextState.gameObjects
+                .map(object => ({
+                    ...object,
+                    position: [object.position[0], object.position[1], object.position[2] + distanceMoved] as [number, number, number],
+                }))
+                .filter(object => object.position[2] < 20);
 
-            // Spawn and collisions
-            newState = spawnGameObjects(newState);
-            newState = checkCollisions(newState);
+            nextState = spawnGameObjects(nextState);
+            nextState = checkCollisions(nextState);
+            if (nextState.player.health <= 0) break;
+        }
 
-            return newState;
-        });
+        if (nextState.player.health <= 0) {
+            nextState = addSpeechBubble({ ...nextState, status: 'gameOver' }, 'gameover');
+            commitGameState(nextState);
+            audioManager.playGameOverSound();
+            onGameOver(Math.floor(nextState.score));
+            return;
+        }
 
+        commitGameState(nextState);
         gameLoopRef.current = requestAnimationFrame(gameLoop);
-    }, [onGameOver, settings.haptics, addSpeechBubble]);
+    }, [addSpeechBubble, checkCollisions, commitGameState, onGameOver, spawnGameObjects]);
 
     useEffect(() => {
         if (gameState.status === 'playing') {
             lastTimeRef.current = performance.now();
+            accumulatorRef.current = 0;
             gameLoopRef.current = requestAnimationFrame(gameLoop);
-        } else {
-            if (gameLoopRef.current) {
-                cancelAnimationFrame(gameLoopRef.current);
-            }
+        } else if (gameLoopRef.current !== null) {
+            cancelAnimationFrame(gameLoopRef.current);
+            gameLoopRef.current = null;
         }
 
         return () => {
-            if (gameLoopRef.current) {
+            if (gameLoopRef.current !== null) {
                 cancelAnimationFrame(gameLoopRef.current);
+                gameLoopRef.current = null;
             }
         };
-    }, [gameState.status, gameLoop]);
-    
+    }, [gameLoop, gameState.status]);
+
     useEffect(() => {
         audioManager.setVolume(settings.volume);
     }, [settings.volume]);
 
-    return { gameState, movePlayer, triggerFlip, triggerSlide, pauseGame, resumeGame, resetGame };
+    return {
+        gameState,
+        movePlayer,
+        triggerFlip,
+        triggerSlide,
+        pauseGame,
+        resumeGame,
+        resetGame,
+    };
 };

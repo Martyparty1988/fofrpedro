@@ -1,24 +1,33 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { lazy, Suspense, useState, useEffect, useCallback } from 'react';
 import { GameStatus, Skin, LeaderboardEntry, Settings } from './types';
 import { MainMenu } from './components/MainMenu';
-import { GameScreen } from './components/GameScreen';
-import { PauseMenu } from './components/PauseMenu';
 import { GameOverScreen } from './components/GameOverScreen';
 import { SettingsScreen } from './components/SettingsScreen';
 import { LeaderboardScreen } from './components/LeaderboardScreen';
-import { SkinsScreen } from './components/SkinsScreen';
-import { getSettings, saveSettings, getSelectedSkin, saveSelectedSkin, getLeaderboard, saveLeaderboard } from './lib/storageManager';
-import { SKINS } from './constants/assets';
+import {
+    getSettings,
+    saveSettings,
+    getSelectedSkin,
+    saveSelectedSkin,
+    getLeaderboard,
+    saveLeaderboard,
+    getHighScore,
+    saveHighScore,
+} from './lib/storageManager';
+import { SKINS } from './constants/skins';
 import { audioManager } from './lib/audioManager';
+
+const GameScreen = lazy(() => import('./components/GameScreen').then(module => ({ default: module.GameScreen })));
+const SkinsScreen = lazy(() => import('./components/SkinsScreen').then(module => ({ default: module.SkinsScreen })));
 
 const App: React.FC = () => {
     const [gameStatus, setGameStatus] = useState<GameStatus>(GameStatus.MainMenu);
     const [lastScore, setLastScore] = useState(0);
-    const [highScore, setHighScore] = useState(() => parseInt(localStorage.getItem('highScore') || '0'));
-    const [settings, setSettings] = useState<Settings>(getSettings());
-    const [selectedSkin, setSelectedSkin] = useState<Skin>(getSelectedSkin());
-    const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>(getLeaderboard());
+    const [highScore, setHighScore] = useState(getHighScore);
+    const [settings, setSettings] = useState<Settings>(getSettings);
+    const [selectedSkin, setSelectedSkin] = useState<Skin>(getSelectedSkin);
+    const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>(getLeaderboard);
     
     useEffect(() => {
         saveSettings(settings);
@@ -31,15 +40,17 @@ const App: React.FC = () => {
     useEffect(() => {
         saveLeaderboard(leaderboard);
     }, [leaderboard]);
+
+    useEffect(() => {
+        saveHighScore(highScore);
+    }, [highScore]);
     
     const handleStartGame = useCallback(() => {
         setGameStatus(GameStatus.Playing);
         audioManager.startMusic();
     }, []);
-    const handlePauseGame = useCallback(() => setGameStatus(GameStatus.Paused), []);
-    const handleResumeGame = useCallback(() => setGameStatus(GameStatus.Playing), []);
     const handleRestart = useCallback(() => {
-        setGameStatus(GameStatus.Playing)
+        setGameStatus(GameStatus.Playing);
         audioManager.startMusic();
     }, []);
     const handleGoToMenu = useCallback(() => {
@@ -52,13 +63,10 @@ const App: React.FC = () => {
 
     const handleGameOver = useCallback((score: number) => {
         setLastScore(score);
-        if (score > highScore) {
-            setHighScore(score);
-            localStorage.setItem('highScore', score.toString());
-        }
+        setHighScore(currentHighScore => Math.max(currentHighScore, score));
         setGameStatus(GameStatus.GameOver);
         audioManager.stopMusic();
-    }, [highScore]);
+    }, []);
     
     const addLeaderboardEntry = (name: string) => {
         const newEntry: LeaderboardEntry = { name, score: lastScore, date: new Date().toISOString() };
@@ -80,13 +88,11 @@ const App: React.FC = () => {
                 />;
             case GameStatus.Playing:
                 return <GameScreen 
-                    onPause={handlePauseGame} 
                     onGameOver={handleGameOver}
+                    onMenu={handleGoToMenu}
                     settings={settings}
                     skin={selectedSkin}
                 />;
-            case GameStatus.Paused:
-                return <PauseMenu onResume={handleResumeGame} onRestart={handleRestart} onMenu={handleGoToMenu} />;
             case GameStatus.GameOver:
                 return <GameOverScreen 
                     score={lastScore} 
@@ -115,7 +121,9 @@ const App: React.FC = () => {
 
     return (
         <div className="w-full h-full bg-black">
-            {renderScreen()}
+            <Suspense fallback={<div className="grid h-full w-full place-items-center bg-black text-cyan-300">Načítání…</div>}>
+                {renderScreen()}
+            </Suspense>
         </div>
     );
 };

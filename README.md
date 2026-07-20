@@ -1,20 +1,48 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# FofrPedro
 
-# Run and deploy your AI Studio app
+Kyberpunkový 3D endless runner zasazený do Prahy. Hráč mění jízdní pruhy, dělá salta a skluzy, sbírá bonusy a vyhýbá se překážkám v postupně se zrychlující hře.
 
-This contains everything you need to run your app locally.
+> Hra obsahuje drsný humor a narážky na návykové látky. Je určena pro dospělé publikum (18+).
 
-View your app in AI Studio: https://ai.studio/apps/drive/1Rv0DwkkQ7SNV3X1Pd5nJgeNw0gLXdw4U
+## Funkce
 
-## Run Locally
+- ovládání klávesnicí i dotykovými gesty,
+- pauza bez ztráty rozehrané hry,
+- tři vzhledy postavy s 3D náhledem,
+- lokální rekordy, žebříček a export/import postupu,
+- nastavení zvuku, vibrací, chvění kamery a omezeného pohybu,
+- responzivní rozhraní se zohledněním výřezů mobilních displejů.
 
-**Prerequisites:**  Node.js
+## Ovládání
 
+| Akce | Klávesnice | Mobil |
+| --- | --- | --- |
+| Pohyb | `←` / `→` | přejetí doleva / doprava |
+| Salto | `↑` nebo mezerník | přejetí nahoru |
+| Skluz | `↓` | přejetí dolů |
+| Pauza | `Esc` | tlačítko pauzy |
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+## Lokální spuštění
+
+Požadavky: Node.js 22 a npm.
+
+```bash
+npm ci
+npm run dev
+```
+
+Aplikace nevyžaduje API klíč ani externí backend. Postup se ukládá pouze do `localStorage` prohlížeče.
+
+## Kontroly kvality
+
+```bash
+npm run typecheck
+npm test
+npm run build
+```
+
+Všechny kontroly lze spustit najednou příkazem `npm run check`. Stejný příkaz běží také v GitHub Actions u každého pull requestu.
+
+## Technologie
+
+React 19, TypeScript, Vite, Three.js, React Three Fiber, Drei a Tailwind CSS.

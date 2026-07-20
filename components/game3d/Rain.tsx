@@ -2,7 +2,7 @@ import React, { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
-const RAIN_COUNT = 1500;
+const RAIN_COUNT = 800;
 const RAIN_AREA_X = 40;
 const RAIN_AREA_Y = 30;
 const RAIN_AREA_Z = 60;

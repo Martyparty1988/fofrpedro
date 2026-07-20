@@ -1,7 +1,6 @@
 export enum GameStatus {
     MainMenu,
     Playing,
-    Paused,
     GameOver,
     Settings,
     Leaderboard,
@@ -42,6 +41,7 @@ export interface PowerUpState {
 export interface PlayerState {
     lane: Lane;
     health: number;
+    damageCooldown: number;
     isFlipping: boolean;
     flipProgress: number; // 0 to 1
     flipCooldown: number;
@@ -52,7 +52,7 @@ export interface PlayerState {
 
 export interface GameEffect {
     id: number;
-    type: 'lajna-collect' | 'cevko-collect' | 'powerup-collect' | 'damage' | 'speech-bubble';
+    type: 'lajna-collect' | 'cevko-collect' | 'powerup-collect' | 'obstacle-destroy' | 'damage' | 'speech-bubble';
     position: [number, number, number];
     createdAt: number;
     text?: string;

@@ -9,8 +9,8 @@ interface LeaderboardScreenProps {
 
 export const LeaderboardScreen: React.FC<LeaderboardScreenProps> = ({ scores, onBack }) => {
     return (
-        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center glassmorphism p-4 screen-enter">
-            <h2 className="text-5xl font-black text-white neon-text mb-8">LEADERBOARD</h2>
+        <div className="safe-screen absolute inset-0 z-20 overflow-y-auto flex flex-col items-center justify-start md:justify-center glassmorphism screen-enter">
+            <h2 className="mt-4 md:mt-0 text-3xl sm:text-5xl text-center font-black text-white neon-text mb-8">ŽEBŘÍČEK</h2>
 
             <div className="w-full max-w-lg flex flex-col gap-3">
                 {scores.length > 0 ? (
@@ -27,12 +27,12 @@ export const LeaderboardScreen: React.FC<LeaderboardScreenProps> = ({ scores, on
                         </div>
                     ))
                 ) : (
-                    <p className="text-center text-gray-400 text-lg">No scores yet. Go set a new record!</p>
+                    <p className="text-center text-gray-400 text-lg">Zatím tu není žádné skóre. Běž vytvořit rekord!</p>
                 )}
             </div>
             
             <div className="mt-12 w-full max-w-md">
-                 <Button onClick={onBack} variant="primary">Back to Menu</Button>
+                 <Button onClick={onBack} variant="primary">Zpět do menu</Button>
             </div>
         </div>
     );

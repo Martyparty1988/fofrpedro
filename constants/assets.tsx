@@ -1,6 +1,6 @@
 import React from 'react';
-import { Skin } from '../types';
-import * as THREE from 'three';
+import type { ThreeElements } from '@react-three/fiber';
+import type { Skin } from '../types';
 
 // --- SVG Icons ---
 export const HeartIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
@@ -42,10 +42,9 @@ export const SlideIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
 
 // --- 3D Skin Models ---
 
-interface PlayerModelProps {
-  colors: Skin['colors'];
-  [key: string]: any;
-}
+type PlayerModelProps = ThreeElements['group'] & {
+    colors: Skin['colors'];
+};
 
 export const PlayerModel: React.FC<PlayerModelProps> = ({ colors, ...props }) => {
     return (
@@ -114,22 +113,3 @@ export const PlayerModel: React.FC<PlayerModelProps> = ({ colors, ...props }) =>
         </group>
     );
 };
-
-
-export const SKINS: Skin[] = [
-    { 
-        id: 'piko-pete', 
-        name: 'Piko Pete', 
-        colors: { hat: '#a78bfa', backpack: '#475569', body: '#374151' }
-    },
-    { 
-        id: 'piko-punk', 
-        name: 'Piko Punk', 
-        colors: { hat: '#7dd3fc', backpack: '#111827', body: '#1f2937' }
-    },
-    { 
-        id: 'golden-piko', 
-        name: 'Golden Piko', 
-        colors: { hat: '#22c55e', backpack: '#d1d5db', body: '#ca8a04' }
-    },
-];
