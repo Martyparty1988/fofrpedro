@@ -1,4 +1,4 @@
-export type RunnerMotion = 'idle' | 'run';
+export type RunnerMotion = 'idle' | 'run' | 'jump' | 'flip' | 'slide' | 'hit' | 'death';
 
 export interface RunnerPose {
     stride: number;
@@ -22,8 +22,11 @@ export const createRunnerPose = (
     reducedMotion = false,
 ): RunnerPose => {
     const running = motion === 'run';
+    const sliding = motion === 'slide';
+    const hit = motion === 'hit' || motion === 'death';
+    const airborne = motion === 'jump' || motion === 'flip';
     const phase = elapsedTime * (running ? 9.4 : 1.45);
-    const motionScale = running ? (reducedMotion ? 0.3 : 1) : 0.08;
+    const motionScale = running ? (reducedMotion ? 0.3 : 1) : airborne ? 0.42 : sliding ? 0.18 : hit ? 0.12 : 0.08;
     const wave = Math.sin(phase);
     const stride = wave * 0.72 * motionScale;
     const doubleStep = Math.sin(phase * 2);
@@ -34,10 +37,14 @@ export const createRunnerPose = (
         rightKnee: Math.max(0, wave) * 0.92 * motionScale,
         armSwing: stride * 0.78,
         elbowFlex: (running ? 0.58 : 0.12) * motionScale,
-        torsoLean: running ? 0.13 * motionScale : 0.015 * Math.sin(phase),
+        torsoLean: sliding ? 0.72 : hit ? -0.3 : running ? 0.13 * motionScale : 0.015 * Math.sin(phase),
         torsoTwist: doubleStep * 0.045 * motionScale,
-        bob: running
-            ? Math.abs(doubleStep) * 0.035 * motionScale
-            : Math.sin(phase) * 0.008,
+        bob: sliding
+            ? -0.34
+            : hit
+                ? -0.08
+                : running
+                    ? Math.abs(doubleStep) * 0.035 * motionScale
+                    : Math.sin(phase) * 0.008,
     };
 };

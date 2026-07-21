@@ -1,175 +1,222 @@
-import React, { useMemo } from 'react';
+import React, { memo, useRef } from 'react';
+import { RoundedBox } from '@react-three/drei';
+import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { GameObject, GameObjectType } from '../../types';
+import { isObstacleType } from '../../lib/gameRules';
 
-const Lajna: React.FC = () => (
-    <mesh castShadow>
-        <boxGeometry args={[0.5, 0.1, 2]} />
-        <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={3} toneMapped={false} />
-    </mesh>
-);
-
-const Cevko: React.FC = () => (
-    <mesh castShadow>
-        <sphereGeometry args={[0.4, 16, 16]} />
-        <meshStandardMaterial color="#a855f7" emissive="#a855f7" emissiveIntensity={2} toneMapped={false} />
-    </mesh>
-);
-
-const SpeedBoost: React.FC = () => (
-    <mesh castShadow rotation={[Math.PI / 2, 0, 0]}>
-        <torusGeometry args={[0.4, 0.1, 8, 32]} />
-        <meshStandardMaterial color="#38bdf8" emissive="#38bdf8" emissiveIntensity={3} toneMapped={false} />
-    </mesh>
-);
-
-const Invincibility: React.FC = () => (
-    <mesh castShadow>
-        <octahedronGeometry args={[0.5, 0]} />
-        <meshStandardMaterial color="#00ffff" emissive="#00ffff" emissiveIntensity={3} toneMapped={false} />
-    </mesh>
-);
-
-const Policajt: React.FC = () => (
+const PickupShell: React.FC<{ color: string; children: React.ReactNode }> = ({ color, children }) => (
     <group>
-        {/* Tělo */}
-        <mesh castShadow position={[0, 1.1, 0]}>
-            <capsuleGeometry args={[0.4, 1.4, 4, 16]} />
-            <meshStandardMaterial color="#1e3a8a" roughness={0.7} />
+        <mesh>
+            <sphereGeometry args={[0.72, 20, 14]} />
+            <meshBasicMaterial color={color} transparent opacity={0.08} depthWrite={false} toneMapped={false} />
         </mesh>
-        {/* Hlava */}
-        <mesh castShadow position={[0, 2.0, 0]}>
-            <sphereGeometry args={[0.35, 32, 32]} />
-            <meshStandardMaterial color="#f5d0c5" roughness={0.6} />
+        <mesh rotation={[Math.PI / 2, 0, 0]}>
+            <torusGeometry args={[0.62, 0.025, 8, 32]} />
+            <meshBasicMaterial color={color} transparent opacity={0.65} toneMapped={false} />
         </mesh>
-        {/* Čepice */}
-        <group position={[0, 2.2, 0]}>
-            <mesh castShadow>
-                <cylinderGeometry args={[0.4, 0.45, 0.3, 32]} />
-                <meshStandardMaterial color="#1e3a8a" roughness={0.8} />
-            </mesh>
-            <mesh position={[0, 0.15, 0.2]} rotation={[0.3, 0, 0]}>
-                <boxGeometry args={[0.5, 0.1, 0.3]} />
-                <meshStandardMaterial color="#1e3a8a" roughness={0.8} />
-            </mesh>
-            <mesh position={[0, 0.2, 0]}>
-                <cylinderGeometry args={[0.05, 0.05, 0.1, 16]} />
-                <meshStandardMaterial color="#facc15" emissive="#facc15" emissiveIntensity={2} />
-            </mesh>
-        </group>
-        {/* Odznak */}
-        <mesh position={[0.3, 1.5, 0.4]} rotation={[0, 0, 0]}>
-            <cylinderGeometry args={[0.1, 0.1, 0.05, 16]} />
-            <meshStandardMaterial color="#facc15" metalness={1} roughness={0.3} />
-        </mesh>
-        {/* Opasek */}
-        <mesh position={[0, 1.1, 0]}>
-            <torusGeometry args={[0.45, 0.05, 16, 32]} />
-            <meshStandardMaterial color="#000000" roughness={0.5} />
-        </mesh>
+        {children}
     </group>
 );
 
-const Auto: React.FC = () => (
-    <group>
-        {/* Karoserie */}
-        <mesh castShadow position={[0, 0.6, 0]}>
-            <boxGeometry args={[2.5, 0.8, 5]} />
-            <meshStandardMaterial color="#dc2626" roughness={0.2} metalness={0.8} />
+const Lajna = () => (
+    <PickupShell color="#f8fafc">
+        <mesh castShadow rotation={[0, 0, Math.PI / 2]}>
+            <capsuleGeometry args={[0.09, 0.75, 6, 16]} />
+            <meshStandardMaterial color="#ffffff" emissive="#dbeafe" emissiveIntensity={3.5} roughness={0.18} toneMapped={false} />
         </mesh>
-        {/* Kabina */}
-        <group position={[0, 1.2, -0.8]}>
-            <mesh castShadow>
-                <boxGeometry args={[2.2, 0.8, 2]} />
-                <meshStandardMaterial color="#111827" roughness={0.1} metalness={0.9} />
-            </mesh>
-            {/* Přední sklo */}
-            <mesh position={[0, 0.2, 1]} rotation={[0.3, 0, 0]}>
-                <boxGeometry args={[2, 0.8, 0.1]} />
-                <meshStandardMaterial color="#38bdf8" roughness={0.1} metalness={0.9} opacity={0.7} transparent />
-            </mesh>
-        </group>
-        {/* Světla */}
-        <group position={[0, 0.5, 2.4]}>
-            <mesh position={[-0.8, 0, 0]}>
-                <boxGeometry args={[0.5, 0.3, 0.1]} />
-                <meshStandardMaterial color="#fef3c7" emissive="#fef3c7" emissiveIntensity={2} />
-            </mesh>
-            <mesh position={[0.8, 0, 0]}>
-                <boxGeometry args={[0.5, 0.3, 0.1]} />
-                <meshStandardMaterial color="#fef3c7" emissive="#fef3c7" emissiveIntensity={2} />
-            </mesh>
-        </group>
-        {/* Kola */}
-        <group>
-            {[[-1.3, 0.3, -1.5] as const, [1.3, 0.3, -1.5] as const, [-1.3, 0.3, 1.5] as const, [1.3, 0.3, 1.5] as const].map((pos, i) => (
-                <mesh key={i} position={pos} rotation={[0, 0, Math.PI / 2]}>
-                    <cylinderGeometry args={[0.3, 0.3, 0.2, 16]} />
-                    <meshStandardMaterial color="#1f2937" roughness={0.8} />
-                </mesh>
-            ))}
-        </group>
-        {/* Majáky */}
-        <group position={[0, 1.7, 0]}>
-            <mesh position={[-0.5, 0, 0]}>
-                <cylinderGeometry args={[0.15, 0.15, 0.2, 16]} />
-                <meshStandardMaterial color="#3b82f6" emissive="#3b82f6" emissiveIntensity={3} />
-            </mesh>
-            <mesh position={[0.5, 0, 0]}>
-                <cylinderGeometry args={[0.15, 0.15, 0.2, 16]} />
-                <meshStandardMaterial color="#ef4444" emissive="#ef4444" emissiveIntensity={3} />
-            </mesh>
-        </group>
-    </group>
+    </PickupShell>
 );
 
-const Barikada: React.FC = () => (
+const Cevko = () => (
+    <PickupShell color="#c084fc">
+        <RoundedBox args={[0.62, 0.7, 0.32]} radius={0.1} smoothness={3} castShadow>
+            <meshStandardMaterial color="#5b217e" emissive="#a855f7" emissiveIntensity={1.3} roughness={0.38} metalness={0.26} />
+        </RoundedBox>
+        <mesh position={[0, 0, 0.18]}>
+            <boxGeometry args={[0.12, 0.42, 0.035]} />
+            <meshBasicMaterial color="#f5d0fe" toneMapped={false} />
+        </mesh>
+        <mesh position={[0, 0, 0.2]}>
+            <boxGeometry args={[0.4, 0.12, 0.035]} />
+            <meshBasicMaterial color="#f5d0fe" toneMapped={false} />
+        </mesh>
+    </PickupShell>
+);
+
+const SpeedBoost = () => (
+    <PickupShell color="#38bdf8">
+        <mesh castShadow rotation={[Math.PI / 2, 0, 0]}>
+            <torusGeometry args={[0.38, 0.11, 10, 40]} />
+            <meshStandardMaterial color="#082f49" emissive="#38bdf8" emissiveIntensity={3.2} metalness={0.72} roughness={0.2} toneMapped={false} />
+        </mesh>
+        {[0, 1, 2].map(index => (
+            <mesh key={index} rotation={[0, 0, index * Math.PI * 2 / 3]}>
+                <boxGeometry args={[0.12, 0.68, 0.08]} />
+                <meshBasicMaterial color="#bae6fd" toneMapped={false} />
+            </mesh>
+        ))}
+    </PickupShell>
+);
+
+const Invincibility = () => (
+    <PickupShell color="#22d3ee">
+        <mesh castShadow>
+            <icosahedronGeometry args={[0.46, 1]} />
+            <meshPhysicalMaterial color="#083344" emissive="#22d3ee" emissiveIntensity={2.4} metalness={0.68} roughness={0.18} clearcoat={1} toneMapped={false} />
+        </mesh>
+        <mesh scale={1.08}>
+            <icosahedronGeometry args={[0.46, 1]} />
+            <meshBasicMaterial color="#67e8f9" wireframe transparent opacity={0.72} toneMapped={false} />
+        </mesh>
+    </PickupShell>
+);
+
+const Policajt = () => (
     <group>
-        {/* Kužely */}
-        {[[-1.2, 0, 0] as const, [1.2, 0, 0] as const].map((pos, i) => (
-            <group key={i} position={pos}>
-                <mesh castShadow position={[0, 0.6, 0]}>
-                    <coneGeometry args={[0.3, 1.2, 32]} />
-                    <meshStandardMaterial color="#f97316" roughness={0.6} />
+        <mesh castShadow position={[0, 1.28, 0]} scale={[0.86, 1, 0.66]}>
+            <capsuleGeometry args={[0.42, 1.05, 6, 16]} />
+            <meshStandardMaterial color="#172554" roughness={0.68} metalness={0.12} />
+        </mesh>
+        <mesh position={[0, 1.48, 0.38]}>
+            <boxGeometry args={[0.7, 0.14, 0.05]} />
+            <meshStandardMaterial color="#dbeafe" emissive="#60a5fa" emissiveIntensity={0.8} />
+        </mesh>
+        {[-0.2, 0.2].map(x => (
+            <group key={x} position={[x, 0.66, 0]}>
+                <mesh castShadow position={[0, -0.25, 0]}>
+                    <capsuleGeometry args={[0.14, 0.44, 5, 10]} />
+                    <meshStandardMaterial color="#111827" roughness={0.84} />
                 </mesh>
-                {/* Reflexní pruhy */}
-                <mesh position={[0, 0.4, 0]}>
-                    <torusGeometry args={[0.31, 0.02, 16, 32]} />
-                    <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={2} />
-                </mesh>
-                <mesh position={[0, 0.7, 0]}>
-                    <torusGeometry args={[0.25, 0.02, 16, 32]} />
-                    <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={2} />
+                <mesh castShadow position={[0, -0.58, 0.12]}>
+                    <boxGeometry args={[0.3, 0.18, 0.52]} />
+                    <meshStandardMaterial color="#05070c" roughness={0.48} />
                 </mesh>
             </group>
         ))}
-        
-        {/* Výstražná páska */}
-        <group position={[0, 0.9, 0]}>
-            <mesh castShadow rotation={[0, 0, Math.PI / 2]}>
-                <boxGeometry args={[0.8, 2.8, 0.05]} />
-                <meshStandardMaterial color="#eab308" roughness={0.4} />
-            </mesh>
-            {/* Černé pruhy na pásce */}
-            {Array.from({length: 5}).map((_, i) => (
-                <mesh key={i} position={[0, -1.2 + i * 0.6, 0]} rotation={[0, 0, Math.PI / 2]}>
-                    <boxGeometry args={[0.15, 2.8, 0.06]} />
-                    <meshStandardMaterial color="#000000" />
+        {[-0.52, 0.52].map((x, index) => (
+            <group key={x} position={[x, 1.62, 0]} rotation={[index ? -0.34 : 0.34, 0, index ? -0.14 : 0.14]}>
+                <mesh castShadow position={[0, -0.3, 0]}>
+                    <capsuleGeometry args={[0.13, 0.46, 5, 10]} />
+                    <meshStandardMaterial color="#1e3a8a" roughness={0.7} />
                 </mesh>
-            ))}
+            </group>
+        ))}
+        <mesh castShadow position={[0, 2.28, 0]}>
+            <sphereGeometry args={[0.34, 20, 16]} />
+            <meshStandardMaterial color="#c98f70" roughness={0.66} />
+        </mesh>
+        <group position={[0, 2.53, 0]}>
+            <mesh castShadow>
+                <cylinderGeometry args={[0.31, 0.38, 0.22, 20]} />
+                <meshStandardMaterial color="#172554" roughness={0.72} />
+            </mesh>
+            <mesh position={[0, -0.04, 0.28]}>
+                <boxGeometry args={[0.52, 0.08, 0.26]} />
+                <meshStandardMaterial color="#1d4ed8" roughness={0.55} />
+            </mesh>
         </group>
+        <mesh position={[0.3, 1.7, 0.4]}>
+            <octahedronGeometry args={[0.1, 0]} />
+            <meshStandardMaterial color="#facc15" emissive="#f59e0b" emissiveIntensity={1.1} metalness={0.9} roughness={0.2} />
+        </mesh>
+    </group>
+);
 
-        {/* Výstražná světla */}
-        {[[-1.2, 1.3, 0] as const, [1.2, 1.3, 0] as const].map((pos, i) => (
-            <mesh key={i} position={pos}>
-                <sphereGeometry args={[0.1, 16, 16]} />
-                <meshStandardMaterial color="#ef4444" emissive="#ef4444" emissiveIntensity={3} />
+const Auto = () => (
+    <group>
+        <RoundedBox args={[2.5, 0.72, 4.8]} radius={0.22} smoothness={4} position={[0, 0.64, 0]} castShadow receiveShadow>
+            <meshPhysicalMaterial color="#9f1239" roughness={0.24} metalness={0.72} clearcoat={0.8} clearcoatRoughness={0.16} />
+        </RoundedBox>
+        <RoundedBox args={[2.1, 0.76, 2.15]} radius={0.18} smoothness={4} position={[0, 1.24, -0.55]} castShadow>
+            <meshPhysicalMaterial color="#07111f" roughness={0.12} metalness={0.6} clearcoat={1} />
+        </RoundedBox>
+        <mesh position={[0, 1.58, -0.55]}>
+            <boxGeometry args={[1.2, 0.12, 0.34]} />
+            <meshStandardMaterial color="#111827" metalness={0.8} roughness={0.24} />
+        </mesh>
+        {[-0.8, 0.8].map(x => (
+            <mesh key={`light-${x}`} position={[x, 0.7, 2.42]}>
+                <boxGeometry args={[0.5, 0.22, 0.06]} />
+                <meshBasicMaterial color="#fef3c7" toneMapped={false} />
+            </mesh>
+        ))}
+        {[-0.62, 0.62].map((x, index) => (
+            <mesh key={`beacon-${x}`} position={[x, 1.72, -0.55]}>
+                <cylinderGeometry args={[0.14, 0.16, 0.18, 16]} />
+                <meshStandardMaterial color={index ? '#ef4444' : '#3b82f6'} emissive={index ? '#ef4444' : '#3b82f6'} emissiveIntensity={4} toneMapped={false} />
+            </mesh>
+        ))}
+        {[-1.25, 1.25].flatMap(x => [-1.5, 1.5].map(z => (
+            <mesh key={`${x}-${z}`} position={[x, 0.38, z]} rotation={[0, 0, Math.PI / 2]} castShadow>
+                <cylinderGeometry args={[0.34, 0.34, 0.24, 18]} />
+                <meshStandardMaterial color="#05070b" roughness={0.76} />
+            </mesh>
+        )))}
+    </group>
+);
+
+const Barikada = () => (
+    <group>
+        {[-1.15, 1.15].map(x => (
+            <group key={x} position={[x, 0, 0]}>
+                <mesh castShadow position={[0, 0.48, 0]}>
+                    <coneGeometry args={[0.28, 0.96, 20]} />
+                    <meshStandardMaterial color="#f97316" roughness={0.56} />
+                </mesh>
+                <mesh position={[0, 0.5, 0]}>
+                    <torusGeometry args={[0.23, 0.035, 8, 24]} />
+                    <meshBasicMaterial color="#fff7ed" toneMapped={false} />
+                </mesh>
+            </group>
+        ))}
+        <RoundedBox args={[2.75, 0.58, 0.18]} radius={0.08} smoothness={2} position={[0, 0.92, 0]} castShadow>
+            <meshStandardMaterial color="#f8fafc" roughness={0.42} />
+        </RoundedBox>
+        {[-0.95, -0.35, 0.25, 0.85].map(x => (
+            <mesh key={x} position={[x, 0.92, 0.11]} rotation={[0, 0, -0.58]}>
+                <boxGeometry args={[0.18, 0.72, 0.035]} />
+                <meshBasicMaterial color="#f97316" toneMapped={false} />
+            </mesh>
+        ))}
+        {[-1.15, 1.15].map(x => (
+            <mesh key={`warning-${x}`} position={[x, 1.36, 0]}>
+                <sphereGeometry args={[0.11, 12, 8]} />
+                <meshBasicMaterial color="#ef4444" toneMapped={false} />
             </mesh>
         ))}
     </group>
 );
 
-const itemComponents: Record<GameObjectType, React.FC> = {
+const Leseni = () => (
+    <group>
+        {[-1.5, 1.5].map(x => (
+            <mesh key={x} position={[x, 1.35, 0]} castShadow>
+                <cylinderGeometry args={[0.07, 0.08, 2.7, 10]} />
+                <meshStandardMaterial color="#64748b" roughness={0.32} metalness={0.82} />
+            </mesh>
+        ))}
+        <mesh position={[0, 2.58, 0]} castShadow>
+            <boxGeometry args={[3.25, 0.16, 0.34]} />
+            <meshStandardMaterial color="#475569" roughness={0.35} metalness={0.74} />
+        </mesh>
+        <RoundedBox args={[2.75, 0.72, 0.16]} radius={0.08} smoothness={2} position={[0, 2.15, 0]} castShadow>
+            <meshStandardMaterial color="#facc15" roughness={0.45} />
+        </RoundedBox>
+        {[-0.9, -0.3, 0.3, 0.9].map(x => (
+            <mesh key={x} position={[x, 2.15, 0.1]} rotation={[0, 0, -0.55]}>
+                <boxGeometry args={[0.18, 0.85, 0.03]} />
+                <meshBasicMaterial color="#111827" toneMapped={false} />
+            </mesh>
+        ))}
+        <mesh position={[0, 1.72, 0.13]}>
+            <boxGeometry args={[1.1, 0.2, 0.04]} />
+            <meshBasicMaterial color="#fb7185" toneMapped={false} />
+        </mesh>
+    </group>
+);
+
+const visuals: Record<GameObjectType, React.FC> = {
     [GameObjectType.Lajna]: Lajna,
     [GameObjectType.Cevko]: Cevko,
     [GameObjectType.SpeedBoost]: SpeedBoost,
@@ -177,19 +224,38 @@ const itemComponents: Record<GameObjectType, React.FC> = {
     [GameObjectType.Policajt]: Policajt,
     [GameObjectType.Auto]: Auto,
     [GameObjectType.Barikada]: Barikada,
+    [GameObjectType.Leseni]: Leseni,
 };
 
-export const GameItems: React.FC<{ gameObjects: GameObject[] }> = ({ gameObjects }) => {
+const GameItemVisual: React.FC<{ object: GameObject }> = memo(({ object }) => {
+    const groupRef = useRef<THREE.Group>(null!);
+    const Visual = visuals[object.type];
+    const obstacle = isObstacleType(object.type);
+
+    useFrame(({ clock }) => {
+        if (!groupRef.current) return;
+        if (!obstacle) {
+            groupRef.current.rotation.y = clock.elapsedTime * 1.7 + object.id % Math.PI;
+            groupRef.current.position.y = object.position[1] + Math.sin(clock.elapsedTime * 3.1 + object.id) * 0.12;
+        } else if (object.type === GameObjectType.Policajt) {
+            groupRef.current.rotation.z = Math.sin(clock.elapsedTime * 5 + object.id) * 0.025;
+        }
+    });
+
     return (
-        <group>
-            {gameObjects.map(obj => {
-                const ItemComponent = itemComponents[obj.type];
-                return ItemComponent ? (
-                    <group key={obj.id} position={obj.position}>
-                        <ItemComponent />
-                    </group>
-                ) : null;
-            })}
+        <group
+            ref={groupRef}
+            position={[object.position[0], obstacle ? 0 : object.position[1], object.position[2]]}
+        >
+            <Visual />
         </group>
     );
-};
+});
+
+GameItemVisual.displayName = 'GameItemVisual';
+
+export const GameItems: React.FC<{ gameObjects: GameObject[] }> = ({ gameObjects }) => (
+    <group>
+        {gameObjects.map(object => <GameItemVisual key={object.id} object={object} />)}
+    </group>
+);

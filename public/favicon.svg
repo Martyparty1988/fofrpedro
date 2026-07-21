@@ -1,11 +1,21 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop stop-color="#ec4899"/>
-      <stop offset="1" stop-color="#06b6d4"/>
+    <linearGradient id="bg" x1="52" y1="38" x2="454" y2="474" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#070b16"/>
+      <stop offset="1" stop-color="#12091b"/>
     </linearGradient>
+    <linearGradient id="neon" x1="126" y1="108" x2="394" y2="408" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#22d3ee"/>
+      <stop offset=".52" stop-color="#f8fafc"/>
+      <stop offset="1" stop-color="#ec4899"/>
+    </linearGradient>
+    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="10" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
   </defs>
-  <rect width="512" height="512" rx="112" fill="#07070d"/>
-  <path d="M256 72 430 174v164L256 440 82 338V174Z" fill="none" stroke="url(#bg)" stroke-width="28"/>
-  <path d="M174 356V152h104c58 0 94 34 94 84s-36 85-94 85h-42v35Zm62-91h36c24 0 38-11 38-29 0-17-14-28-38-28h-36Z" fill="#fff"/>
+  <rect width="512" height="512" rx="118" fill="url(#bg)"/>
+  <path d="M88 374 158 138h116c81 0 130 37 130 104 0 66-49 105-130 105h-43l-18 61h-74l78-258h51c39 0 61 14 61 43 0 30-22 45-61 45h-37l-25 83h69c34 0 54-13 54-38 0-23-20-36-54-36H213l-50 167Z" fill="url(#neon)" filter="url(#glow)"/>
+  <path d="m351 90-40 76h40l-31 73 90-105h-44l31-44Z" fill="#facc15"/>
+  <path d="M98 414h316" stroke="#22d3ee" stroke-width="12" stroke-linecap="round" opacity=".75"/>
 </svg>

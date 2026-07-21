@@ -1,4 +1,4 @@
-# FofrPedro
+# Fofr Pedro
 
 Kyberpunkový 3D endless runner zasazený do Prahy. Hráč mění jízdní pruhy, dělá salta a skluzy, sbírá bonusy a vyhýbá se překážkám v postupně se zrychlující hře.
 
@@ -6,13 +6,19 @@ Kyberpunkový 3D endless runner zasazený do Prahy. Hráč mění jízdní pruhy
 
 ## Funkce
 
-- ovládání klávesnicí i dotykovými gesty,
+- plynulé přebíhání mezi pruhy se shodnou vizuální a kolizní pozicí,
+- odlišné typy překážek pro úhyb, salto a skluz,
+- komba, násobič skóre, těsné průlety a detailní souhrn každého běhu,
+- denní výzvy, mince a odemykání vzhledů,
+- ovládání klávesnicí i dotykovými gesty včetně prvního interaktivního tutoriálu,
 - pauza bez ztráty rozehrané hry,
-- rigovaná lidská postava s kosterní animací běhu a bezpečným procedurálním fallbackem,
+- lokálně uložená rigovaná lidská postava se sedmi kosterními animacemi a bezpečným procedurálním fallbackem,
 - procedurální noční Praha s PBR fasádami, tramvajovými zastávkami a odrazy na mokré vozovce,
 - tři vzhledy postavy s 3D náhledem,
 - lokální rekordy, žebříček a export/import postupu,
-- nastavení zvuku, vibrací, chvění kamery a omezeného pohybu,
+- oddělené nastavení hudby a efektů, vibrací, chvění kamery, omezeného pohybu a kvality grafiky,
+- automatické přizpůsobení kvality slabším mobilním zařízením,
+- instalovatelná PWA se základní offline podporou,
 - responzivní rozhraní se zohledněním výřezů mobilních displejů.
 
 ## Ovládání
@@ -33,7 +39,7 @@ npm ci
 npm run dev
 ```
 
-Aplikace nevyžaduje API klíč ani externí backend. Postup se ukládá pouze do `localStorage` prohlížeče. Detailnější CC0 model postavy se načítá z verze připnuté na konkrétní commit; při nedostupnosti sítě se použije lokální rigovaný model a následně procedurální fallback.
+Aplikace nevyžaduje API klíč, externí backend ani síťové načítání herních assetů. Postup se ukládá pouze do `localStorage` prohlížeče. Model postavy i vybrané animace jsou součástí repozitáře; při chybě 3D assetu se použije procedurální fallback.
 
 ## Kontroly kvality
 

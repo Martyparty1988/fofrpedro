@@ -21,6 +21,7 @@ export enum GameObjectType {
     Policajt,
     Auto,
     Barikada,
+    Leseni,
 }
 
 export interface GameObject {
@@ -31,6 +32,7 @@ export interface GameObject {
     width: number;
     height: number;
     depth: number;
+    hasPassedPlayer: boolean;
 }
 
 export interface PowerUpState {
@@ -40,6 +42,7 @@ export interface PowerUpState {
 
 export interface PlayerState {
     lane: Lane;
+    positionX: number;
     health: number;
     damageCooldown: number;
     isFlipping: boolean;
@@ -48,6 +51,27 @@ export interface PlayerState {
     isSliding: boolean;
     slideProgress: number; // 0 to 1
     slideCooldown: number;
+}
+
+export interface ComboState {
+    count: number;
+    multiplier: number;
+    timeLeft: number;
+    best: number;
+}
+
+export interface RunStats {
+    distance: number;
+    collectibles: number;
+    destroyed: number;
+    avoided: number;
+    nearMisses: number;
+}
+
+export interface RunSummary extends RunStats {
+    score: number;
+    bestCombo: number;
+    coinsEarned: number;
 }
 
 export interface GameEffect {
@@ -59,13 +83,16 @@ export interface GameEffect {
 }
 
 export interface GameState {
-    status: 'playing' | 'paused' | 'gameOver';
+    status: 'countdown' | 'playing' | 'paused' | 'gameOver';
+    countdown: number;
     score: number;
     gameSpeed: number;
     player: PlayerState;
     gameObjects: GameObject[];
     activePowerUps: PowerUpState[];
     effects: GameEffect[];
+    combo: ComboState;
+    stats: RunStats;
 }
 
 export interface Skin {
@@ -76,6 +103,8 @@ export interface Skin {
         backpack: string;
         body: string;
     }
+    description: string;
+    unlockCost: number;
 }
 
 export interface LeaderboardEntry {
@@ -85,8 +114,30 @@ export interface LeaderboardEntry {
 }
 
 export interface Settings {
-    volume: number; // 0 to 1
+    musicVolume: number; // 0 to 1
+    sfxVolume: number; // 0 to 1
     haptics: boolean;
     cameraShake: boolean;
     reducedMotion: boolean;
+    quality: 'auto' | 'high' | 'balanced' | 'low';
+}
+
+export interface PlayerProgress {
+    coins: number;
+    totalRuns: number;
+    totalDistance: number;
+    unlockedSkinIds: string[];
+    dailyChallengeDate: string;
+    dailyChallengeClaimed: boolean;
+}
+
+export type DailyChallengeMetric = 'score' | 'collectibles' | 'bestCombo' | 'avoided';
+
+export interface DailyChallenge {
+    id: string;
+    title: string;
+    description: string;
+    metric: DailyChallengeMetric;
+    target: number;
+    reward: number;
 }

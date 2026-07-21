@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { advanceTimer, resolveObstacleCollision } from './gameRules';
+import { GameObjectType } from '../types';
+import { advanceTimer, getObstacleRequirement, moveTowards, resolveObstacleCollision } from './gameRules';
 
 describe('advanceTimer', () => {
     it('uses elapsed time instead of frame count', () => {
@@ -19,19 +20,24 @@ describe('advanceTimer', () => {
 
 describe('resolveObstacleCollision', () => {
     const defaultCollision = {
+        obstacleType: GameObjectType.Policajt,
         isFlipping: false,
         isSliding: false,
         isInvincible: false,
         damageCooldown: 0,
     };
 
-    it('destroys an obstacle while flipping or invincible', () => {
+    it('uses the action required by each obstacle', () => {
         expect(resolveObstacleCollision({ ...defaultCollision, isFlipping: true })).toBe('destroy');
-        expect(resolveObstacleCollision({ ...defaultCollision, isInvincible: true })).toBe('destroy');
+        expect(resolveObstacleCollision({ ...defaultCollision, isSliding: true })).toBe('pass');
+        expect(resolveObstacleCollision({ ...defaultCollision, obstacleType: GameObjectType.Barikada, isSliding: true })).toBe('hit');
+        expect(resolveObstacleCollision({ ...defaultCollision, obstacleType: GameObjectType.Leseni, isFlipping: true })).toBe('hit');
+        expect(resolveObstacleCollision({ ...defaultCollision, obstacleType: GameObjectType.Leseni, isSliding: true })).toBe('pass');
+        expect(resolveObstacleCollision({ ...defaultCollision, obstacleType: GameObjectType.Auto, isFlipping: true })).toBe('hit');
     });
 
-    it('passes an obstacle while sliding', () => {
-        expect(resolveObstacleCollision({ ...defaultCollision, isSliding: true })).toBe('pass');
+    it('lets invincibility destroy every obstacle', () => {
+        expect(resolveObstacleCollision({ ...defaultCollision, obstacleType: GameObjectType.Auto, isInvincible: true })).toBe('destroy');
     });
 
     it('prevents repeated damage during the cooldown', () => {
@@ -40,5 +46,19 @@ describe('resolveObstacleCollision', () => {
 
     it('reports a normal hit when no defense is active', () => {
         expect(resolveObstacleCollision(defaultCollision)).toBe('hit');
+    });
+});
+
+describe('lane movement', () => {
+    it('moves continuously without overshooting the target', () => {
+        expect(moveTowards(0, 4, 1.5)).toBe(1.5);
+        expect(moveTowards(3.8, 4, 1.5)).toBe(4);
+        expect(moveTowards(4, -4, 2)).toBe(2);
+    });
+
+    it('describes every obstacle requirement', () => {
+        expect(getObstacleRequirement(GameObjectType.Barikada)).toBe('jump');
+        expect(getObstacleRequirement(GameObjectType.Leseni)).toBe('slide');
+        expect(getObstacleRequirement(GameObjectType.Auto)).toBe('dodge');
     });
 });

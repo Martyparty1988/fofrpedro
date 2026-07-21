@@ -4,6 +4,7 @@ import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { CITY_SPAN, CitySide, createCityLayout } from '../../lib/cityLayout';
 import { createFacadeTexture, createSignTexture } from '../../lib/materialTextures';
+import type { SceneQuality } from './GameScene3D';
 
 const CITY_FRONT = 55;
 
@@ -418,13 +419,13 @@ const PragueLandmarks: React.FC<{ speed: number }> = ({ speed }) => {
     );
 };
 
-export const Environment: React.FC<{ speed: number }> = ({ speed }) => (
+export const Environment: React.FC<{ speed: number; quality: SceneQuality }> = ({ speed, quality }) => (
     <group>
-        <Stars radius={110} depth={45} count={650} factor={2.2} saturation={0.18} fade speed={0.08} />
+        <Stars radius={110} depth={45} count={quality === 'high' ? 650 : quality === 'balanced' ? 420 : 220} factor={2.2} saturation={0.18} fade speed={0.08} />
         <BuildingStrip speed={speed} side={-1} seed={1948} />
         <BuildingStrip speed={speed} side={1} seed={2026} />
         <StreetFurniture speed={speed} />
-        <TransitStops speed={speed} />
+        {quality !== 'low' && <TransitStops speed={speed} />}
         <PragueLandmarks speed={speed} />
         {[-3.2, 3.2].map(x => (
             <mesh key={x} position={[x, 6.25, -55]} rotation={[Math.PI / 2, 0, 0]}>

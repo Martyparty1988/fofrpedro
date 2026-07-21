@@ -3,6 +3,7 @@ import { MeshReflectorMaterial } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { createAsphaltTextures, createPavingTexture } from '../lib/materialTextures';
+import type { SceneQuality } from './game3d/GameScene3D';
 
 const ROAD_LENGTH = 200;
 const ROAD_CENTER_Z = -70;
@@ -32,7 +33,7 @@ const seededRandom = (seed: number) => {
     };
 };
 
-export const Road: React.FC<{ speed: number }> = ({ speed }) => {
+export const Road: React.FC<{ speed: number; quality: SceneQuality }> = ({ speed, quality }) => {
     const dashRef = useRef<THREE.InstancedMesh>(null!);
     const puddleRef = useRef<THREE.InstancedMesh>(null!);
     const dummy = useMemo(() => new THREE.Object3D(), []);
@@ -123,11 +124,11 @@ export const Road: React.FC<{ speed: number }> = ({ speed }) => {
                     roughnessMap={asphalt.roughness}
                     roughness={0.72}
                     metalness={0.18}
-                    mirror={0.38}
-                    mixBlur={1.25}
-                    mixStrength={1.15}
-                    blur={[220, 70]}
-                    resolution={512}
+                    mirror={quality === 'low' ? 0.12 : 0.34}
+                    mixBlur={quality === 'high' ? 1.25 : 0.7}
+                    mixStrength={quality === 'low' ? 0.45 : 1.05}
+                    blur={quality === 'high' ? [220, 70] : quality === 'balanced' ? [120, 40] : [40, 16]}
+                    resolution={quality === 'high' ? 512 : quality === 'balanced' ? 256 : 128}
                     depthScale={0.32}
                     minDepthThreshold={0.72}
                     maxDepthThreshold={1.25}
