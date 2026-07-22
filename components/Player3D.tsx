@@ -10,22 +10,17 @@ interface Player3DProps {
     powerUps: PowerUpState[];
     settings: Settings;
     active: boolean;
+    crashed: boolean;
 }
 
 const GROUND_Y = 0.04;
 const MODEL_PIVOT_Y = 1.25;
 const MODEL_POSITION: [number, number, number] = [0, -MODEL_PIVOT_Y, 0];
 const FLIP_JUMP_HEIGHT = 2.8;
-const FLIP_ROTATION_SPEED = -Math.PI * 2;
 const HOP_JUMP_HEIGHT = 1.9;
 const SLIDE_HEIGHT_OFFSET = -0.22;
-const SLIDE_ROTATION = Math.PI * 0.42;
 
-
-// A smooth easing function (quintic in-out)
-const easeInOutQuint = (t: number) => t < 0.5 ? 16 * t * t * t * t * t : 1 + 16 * (--t) * t * t * t * t;
-
-export const Player3D: React.FC<Player3DProps> = ({ playerState, skin, powerUps, settings, active }) => {
+export const Player3D: React.FC<Player3DProps> = ({ playerState, skin, powerUps, settings, active, crashed }) => {
     // This ref controls the group's position (lane switching, jumping)
     const groupRef = useRef<THREE.Group>(null!);
     // This ref controls the model's rotation and scale, independent of its position
@@ -43,9 +38,8 @@ export const Player3D: React.FC<Player3DProps> = ({ playerState, skin, powerUps,
         if (!groupRef.current || !playerModelRef.current) return;
         const damping = 1 - Math.exp(-12 * delta);
         
-        // Smooth lane switching
-        const targetX = playerState.lane * 4;
-        groupRef.current.position.x = THREE.MathUtils.lerp(groupRef.current.position.x, targetX, damping);
+        // Rendering and collision logic share the same continuous lane position.
+        groupRef.current.position.x = playerState.positionX;
 
         // --- DYNAMIC FLIP & HOP ANIMATIONS ---
         if (playerState.isFlipping) {
@@ -60,13 +54,8 @@ export const Player3D: React.FC<Player3DProps> = ({ playerState, skin, powerUps,
                 groupRef.current.position.y = GROUND_Y + jumpArc * HOP_JUMP_HEIGHT;
                 playerModelRef.current.rotation.x = 0; // Ensure no rotation
             } else {
-                // Dynamic acrobatic front flip
-                const easedProgress = easeInOutQuint(progress);
-                
-                // Apply rotation to the model itself
-                playerModelRef.current.rotation.x = easedProgress * FLIP_ROTATION_SPEED;
-                
-                // Apply vertical motion to the parent group
+                // The authored skeleton clip handles the rotation.
+                playerModelRef.current.rotation.x = 0;
                 groupRef.current.position.y = GROUND_Y + jumpArc * FLIP_JUMP_HEIGHT;
             }
         } else if (playerState.isSliding) {
@@ -74,9 +63,9 @@ export const Player3D: React.FC<Player3DProps> = ({ playerState, skin, powerUps,
             // Parabolic arc for smooth entry/exit of the slide motion
             const slideArc = 4 * progress * (1 - progress);
 
-            // Lower the player and rotate them
+            // The authored slide clip handles the pose; this keeps the model aligned with its hitbox.
             groupRef.current.position.y = GROUND_Y + SLIDE_HEIGHT_OFFSET * slideArc;
-            playerModelRef.current.rotation.x = SLIDE_ROTATION * slideArc;
+            playerModelRef.current.rotation.x = 0;
         } else {
             // Lerp back to original position/rotation when not doing any action
             groupRef.current.position.y = THREE.MathUtils.lerp(groupRef.current.position.y, GROUND_Y, damping);
@@ -116,7 +105,15 @@ export const Player3D: React.FC<Player3DProps> = ({ playerState, skin, powerUps,
                     position={MODEL_POSITION}
                     scale={0.82}
                     colors={skin.colors}
-                    motion={active && !playerState.isFlipping && !playerState.isSliding ? 'run' : 'idle'}
+                    motion={crashed
+                        ? 'death'
+                        : playerState.damageCooldown > 0
+                            ? 'hit'
+                            : playerState.isFlipping
+                                ? settings.reducedMotion ? 'jump' : 'flip'
+                                : playerState.isSliding
+                                    ? 'slide'
+                                    : active ? 'run' : 'idle'}
                     reducedMotion={settings.reducedMotion}
                  />
             </group>

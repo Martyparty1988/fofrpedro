@@ -51,21 +51,51 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ settings, setSet
             <h2 className="mt-4 mb-8 text-center text-3xl font-black text-white neon-text sm:text-5xl md:mt-0">NASTAVENÍ</h2>
 
             <div className="flex w-full max-w-md flex-col gap-5">
-                <div className="flex flex-col gap-2">
-                    <label htmlFor="volume" className="text-sm text-gray-200 sm:text-lg">
-                        Hlasitost: {Math.round(settings.volume * 100)} %
+                <div className="flex flex-col gap-2 rounded-lg p-3 glassmorphism">
+                    <label htmlFor="music-volume" className="text-sm text-gray-200 sm:text-lg">
+                        Hudba a ambient: {Math.round(settings.musicVolume * 100)} %
                     </label>
                     <input
-                        id="volume"
+                        id="music-volume"
                         type="range"
                         min="0"
                         max="1"
                         step="0.01"
-                        value={settings.volume}
-                        onChange={event => setSettings(current => ({ ...current, volume: Number(event.target.value) }))}
+                        value={settings.musicVolume}
+                        onChange={event => setSettings(current => ({ ...current, musicVolume: Number(event.target.value) }))}
                         className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-gray-700 accent-fuchsia-500"
                     />
                 </div>
+
+                <div className="flex flex-col gap-2 rounded-lg p-3 glassmorphism">
+                    <label htmlFor="sfx-volume" className="text-sm text-gray-200 sm:text-lg">
+                        Herní zvuky: {Math.round(settings.sfxVolume * 100)} %
+                    </label>
+                    <input
+                        id="sfx-volume"
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.01"
+                        value={settings.sfxVolume}
+                        onChange={event => setSettings(current => ({ ...current, sfxVolume: Number(event.target.value) }))}
+                        className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-gray-700 accent-cyan-500"
+                    />
+                </div>
+
+                <label className="flex items-center justify-between gap-4 rounded-lg p-3 glassmorphism">
+                    <span className="text-sm text-gray-200 sm:text-lg">Kvalita grafiky</span>
+                    <select
+                        value={settings.quality}
+                        onChange={event => setSettings(current => ({ ...current, quality: event.target.value as Settings['quality'] }))}
+                        className="rounded-lg border border-white/15 bg-slate-950 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-300"
+                    >
+                        <option value="auto">Automatická</option>
+                        <option value="high">Vysoká</option>
+                        <option value="balanced">Vyvážená</option>
+                        <option value="low">Úsporná</option>
+                    </select>
+                </label>
 
                 <SettingToggle
                     label="Vibrace"

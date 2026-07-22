@@ -2,6 +2,7 @@ import React, { useRef } from 'react';
 import { useFrame, type ThreeElements } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { Skin } from '../types';
+import type { RunnerMotion } from '../lib/runnerPose';
 
 // --- SVG Icons ---
 export const HeartIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
@@ -45,7 +46,7 @@ export const SlideIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
 
 type PlayerModelProps = ThreeElements['group'] & {
     colors: Skin['colors'];
-    motion?: 'idle' | 'run';
+    motion?: RunnerMotion;
     reducedMotion?: boolean;
 };
 
@@ -72,10 +73,12 @@ const PlayerModelComponent: React.FC<PlayerModelProps> = ({
 
     useFrame(({ clock }, delta) => {
         const running = motion === 'run';
+        const sliding = motion === 'slide';
+        const hit = motion === 'hit' || motion === 'death';
         const phase = clock.elapsedTime * (running ? 9 : 1.6);
         const intensity = running ? (reducedMotion ? 0.2 : 0.72) : 0.045;
         const swing = Math.sin(phase) * intensity;
-        const bounce = running && !reducedMotion ? Math.abs(Math.sin(phase)) * 0.035 : Math.sin(phase) * 0.008;
+        const bounce = sliding ? -0.28 : hit ? -0.06 : running && !reducedMotion ? Math.abs(Math.sin(phase)) * 0.035 : Math.sin(phase) * 0.008;
         const damping = 1 - Math.exp(-14 * delta);
 
         leftArmRef.current.rotation.x = THREE.MathUtils.lerp(leftArmRef.current.rotation.x, -swing, damping);
@@ -87,6 +90,7 @@ const PlayerModelComponent: React.FC<PlayerModelProps> = ({
         leftShinRef.current.rotation.x = THREE.MathUtils.lerp(leftShinRef.current.rotation.x, Math.max(0, -swing) * 0.7, damping);
         rightShinRef.current.rotation.x = THREE.MathUtils.lerp(rightShinRef.current.rotation.x, Math.max(0, swing) * 0.7, damping);
         torsoRef.current.position.y = THREE.MathUtils.lerp(torsoRef.current.position.y, 1.9 + bounce, damping);
+        torsoRef.current.rotation.x = THREE.MathUtils.lerp(torsoRef.current.rotation.x, sliding ? 0.65 : hit ? -0.3 : 0, damping);
         torsoRef.current.rotation.z = THREE.MathUtils.lerp(torsoRef.current.rotation.z, running ? swing * 0.035 : 0, damping);
     });
 

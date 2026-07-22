@@ -1,104 +1,87 @@
-import React, { useRef, useMemo } from 'react';
+import React, { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { GameEffect } from '../../types';
 
-// A more generic particle effect component
 const ParticleBurst: React.FC<{
     position: [number, number, number];
     count: number;
-    color: THREE.Color | string;
+    color: string;
     size: number;
     duration: number;
     speed: number;
 }> = ({ position, count, color, size, duration, speed }) => {
-    const particles = useMemo(() => {
-        return Array.from({ length: count }, () => ({
-            ref: React.createRef<THREE.Mesh>(),
-            velocity: new THREE.Vector3(
-                (Math.random() - 0.5) * speed,
-                (Math.random() - 0.5) * speed,
-                (Math.random() - 0.5) * speed
-            ),
-            rotationSpeed: new THREE.Vector3(
-                (Math.random() - 0.5) * 5,
-                (Math.random() - 0.5) * 5,
-                (Math.random() - 0.5) * 5
-            ),
-        }));
+    const pointsRef = useRef<THREE.Points>(null!);
+    const materialRef = useRef<THREE.PointsMaterial>(null!);
+    const life = useRef(0);
+    const { positions, velocities } = useMemo(() => {
+        const nextPositions = new Float32Array(count * 3);
+        const nextVelocities = new Float32Array(count * 3);
+        for (let index = 0; index < count; index++) {
+            const direction = new THREE.Vector3(
+                Math.random() - 0.5,
+                Math.random() * 0.8 + 0.15,
+                Math.random() - 0.5,
+            ).normalize().multiplyScalar(speed * (0.55 + Math.random() * 0.7));
+            nextVelocities.set(direction.toArray(), index * 3);
+        }
+        return { positions: nextPositions, velocities: nextVelocities };
     }, [count, speed]);
 
-    const groupRef = useRef<THREE.Group>(null!);
-    const life = useRef(0);
-
     useFrame((_, delta) => {
-        if (!groupRef.current) return;
+        if (!pointsRef.current || !materialRef.current) return;
         life.current += delta;
-        const progress = Math.min(life.current / duration, 1);
-
-        if (progress >= 1) {
-            groupRef.current.visible = false;
-            return;
+        const progress = Math.min(1, life.current / duration);
+        for (let index = 0; index < count; index++) {
+            positions[index * 3] += velocities[index * 3] * delta;
+            positions[index * 3 + 1] += velocities[index * 3 + 1] * delta - 3.2 * delta * delta;
+            positions[index * 3 + 2] += velocities[index * 3 + 2] * delta;
+            velocities[index * 3 + 1] -= 4.8 * delta;
         }
-
-        const easedProgress = 1 - Math.pow(1 - progress, 3); // easeOutCubic
-
-        particles.forEach(p => {
-            if (p.ref.current) {
-                p.ref.current.position.addScaledVector(p.velocity, delta);
-                p.ref.current.rotation.x += p.rotationSpeed.x * delta;
-                p.ref.current.rotation.y += p.rotationSpeed.y * delta;
-
-                const scale = Math.max(0, 1 - easedProgress);
-                p.ref.current.scale.set(scale * size, scale * size, scale * size);
-
-                (p.ref.current.material as THREE.MeshStandardMaterial).opacity = Math.max(0, 1 - progress * 1.5);
-            }
-        });
+        const attribute = pointsRef.current.geometry.getAttribute('position') as THREE.BufferAttribute;
+        attribute.needsUpdate = true;
+        materialRef.current.opacity = Math.max(0, 1 - progress);
+        materialRef.current.size = size * Math.max(0.15, 1 - progress * 0.7);
+        pointsRef.current.visible = progress < 1;
     });
 
     return (
-        <group ref={groupRef} position={position}>
-            {particles.map((p, i) => (
-                <mesh key={i} ref={p.ref}>
-                    <boxGeometry args={[1, 1, 1]} />
-                    <meshStandardMaterial
-                        color={color}
-                        emissive={color}
-                        emissiveIntensity={5}
-                        transparent
-                        toneMapped={false}
-                    />
-                </mesh>
-            ))}
-        </group>
+        <points ref={pointsRef} position={position} frustumCulled={false}>
+            <bufferGeometry>
+                <bufferAttribute attach="attributes-position" args={[positions, 3]} />
+            </bufferGeometry>
+            <pointsMaterial
+                ref={materialRef}
+                color={color}
+                size={size}
+                sizeAttenuation
+                transparent
+                opacity={1}
+                depthWrite={false}
+                blending={THREE.AdditiveBlending}
+                toneMapped={false}
+            />
+        </points>
     );
 };
 
-
-interface EffectsManagerProps {
-    effects: GameEffect[];
-}
-
-export const EffectsManager: React.FC<EffectsManagerProps> = ({ effects }) => {
-    return (
-        <group>
-            {effects.map(effect => {
-                switch (effect.type) {
-                    case 'lajna-collect':
-                        return <ParticleBurst key={effect.id} position={effect.position} color={"#ffffff"} count={8} size={0.1} duration={0.4} speed={5} />;
-                    case 'cevko-collect':
-                        return <ParticleBurst key={effect.id} position={effect.position} color={"#a855f7"} count={8} size={0.15} duration={0.4} speed={5} />;
-                    case 'powerup-collect':
-                         return <ParticleBurst key={effect.id} position={effect.position} color={"#fde047"} count={30} size={0.25} duration={0.8} speed={15} />;
-                    case 'obstacle-destroy':
-                         return <ParticleBurst key={effect.id} position={effect.position} color={"#f97316"} count={20} size={0.2} duration={0.6} speed={12} />;
-                    case 'damage':
-                         return <ParticleBurst key={effect.id} position={effect.position} color={"#ff4400"} count={20} size={0.2} duration={0.6} speed={12} />;
-                    default:
-                        return null;
-                }
-            })}
-        </group>
-    );
-};
+export const EffectsManager: React.FC<{ effects: GameEffect[] }> = ({ effects }) => (
+    <group>
+        {effects.map(effect => {
+            switch (effect.type) {
+                case 'lajna-collect':
+                    return <ParticleBurst key={effect.id} position={effect.position} color="#ffffff" count={10} size={0.18} duration={0.45} speed={4.5} />;
+                case 'cevko-collect':
+                    return <ParticleBurst key={effect.id} position={effect.position} color="#c084fc" count={12} size={0.22} duration={0.45} speed={5} />;
+                case 'powerup-collect':
+                    return <ParticleBurst key={effect.id} position={effect.position} color="#fde047" count={30} size={0.28} duration={0.8} speed={10} />;
+                case 'obstacle-destroy':
+                    return <ParticleBurst key={effect.id} position={effect.position} color="#fb923c" count={24} size={0.26} duration={0.65} speed={8} />;
+                case 'damage':
+                    return <ParticleBurst key={effect.id} position={effect.position} color="#ff3d00" count={28} size={0.3} duration={0.72} speed={9} />;
+                default:
+                    return null;
+            }
+        })}
+    </group>
+);

@@ -51,9 +51,9 @@ const AbilityIndicator: React.FC<AbilityIndicatorProps> = ({
     const progress = isReady ? 100 : Math.max(0, Math.min(100, ((maxCooldown - cooldown) / maxCooldown) * 100));
 
     return (
-        <div className={`hud-chip flex min-w-28 items-center gap-2 px-2.5 py-2 transition-opacity duration-200 ${isReady ? 'opacity-100' : 'opacity-60'}`} aria-label={`${label}: ${isReady ? 'připraveno' : 'obnovuje se'}`}>
+        <div className={`hud-chip flex items-center gap-2 px-2.5 py-2 transition-all duration-200 ${isReady ? 'min-w-0 opacity-85' : 'min-w-28 opacity-70'}`} aria-label={`${label}: ${isReady ? 'připraveno' : 'obnovuje se'}`}>
             <Icon className={`h-5 w-5 shrink-0 ${isReady ? readyClassName : 'text-gray-500'}`} aria-hidden="true" />
-            <div className="min-w-0 flex-1">
+            <div className={`${isReady ? 'hidden sm:block' : 'min-w-0 flex-1'}`}>
                 <div className="mb-1 flex items-center justify-between gap-2 text-[9px] font-bold tracking-[0.12em] text-gray-300">
                     <span>{label}</span>
                     <span className={isReady ? readyClassName : 'text-gray-500'}>{isReady ? 'OK' : '…'}</span>
@@ -100,9 +100,10 @@ export const HUD: React.FC<HUDProps> = ({ gameState, onPause }) => {
                     <span className="text-[10px] font-bold tracking-[0.18em] text-gray-400 sm:text-xs">SKÓRE</span>
                     <span className="mt-0.5 text-2xl font-black leading-none tracking-tight tabular-nums sm:text-4xl">{Math.floor(gameState.score)}</span>
                     <span className="mt-1.5 text-[10px] font-semibold tracking-[0.12em] text-cyan-300 sm:text-xs">TEMPO {gameState.gameSpeed.toFixed(1)}</span>
+                    <span className="mt-1 text-[9px] font-semibold tracking-[0.1em] text-gray-500 sm:text-[10px]">{Math.floor(gameState.stats.distance)} m · TĚSNĚ {gameState.stats.nearMisses}</span>
                 </div>
 
-                <button type="button" aria-label="Pozastavit hru" onClick={onPause} className="hud-control pointer-events-auto grid h-12 w-12 place-items-center rounded-full transition-colors duration-200 hover:bg-white/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300">
+                <button type="button" aria-label="Pozastavit hru" onClick={onPause} disabled={gameState.status !== 'playing'} className="hud-control pointer-events-auto grid h-12 w-12 place-items-center rounded-full transition-colors duration-200 hover:bg-white/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 disabled:pointer-events-none disabled:opacity-35">
                     <PauseIcon className="h-5 w-5" aria-hidden="true" />
                 </button>
             </div>
@@ -110,6 +111,14 @@ export const HUD: React.FC<HUDProps> = ({ gameState, onPause }) => {
             <div className="game-message-region" aria-live="polite" aria-atomic="true">
                 {activeMessage && <GameMessage key={activeMessage.id} effect={activeMessage} />}
             </div>
+
+            {gameState.combo.count >= 2 && (
+                <div className="combo-indicator" aria-label={`Kombo ${gameState.combo.count}, násobič ${gameState.combo.multiplier}`}>
+                    <span>KOMBO {gameState.combo.count}</span>
+                    <strong>×{gameState.combo.multiplier}</strong>
+                    <i style={{ transform: `scaleX(${Math.max(0, gameState.combo.timeLeft / 3.5)})` }} />
+                </div>
+            )}
 
             <div className="flex justify-between items-end">
                 <div className="hud-panel flex gap-1.5 rounded-2xl p-2.5 sm:gap-2 sm:p-3" aria-label={`Zdraví ${gameState.player.health} z 5`}>

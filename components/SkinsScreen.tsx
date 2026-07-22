@@ -1,22 +1,26 @@
 import React from 'react';
 import { Canvas } from '@react-three/fiber';
 import { ContactShadows, OrbitControls } from '@react-three/drei';
-import { Skin } from '../types';
+import { PlayerProgress, Skin } from '../types';
 import { Button } from './Button';
 import { RealisticRunner } from './game3d/RealisticRunner';
 
 interface SkinsScreenProps {
     skins: Skin[];
     selectedSkin: Skin;
-    onSelectSkin: (skin: Skin) => void;
+    progress: PlayerProgress;
+    onSkinAction: (skin: Skin) => void;
     onBack: () => void;
 }
 
 const PREVIEW_MODEL_POSITION: [number, number, number] = [0, -1.48, 0];
 
-export const SkinsScreen: React.FC<SkinsScreenProps> = ({ skins, selectedSkin, onSelectSkin, onBack }) => (
+export const SkinsScreen: React.FC<SkinsScreenProps> = ({ skins, selectedSkin, progress, onSkinAction, onBack }) => (
     <div className="safe-screen absolute inset-0 z-20 flex flex-col items-center justify-start overflow-y-auto glassmorphism screen-enter md:justify-center">
-        <h2 className="mt-4 mb-4 text-center text-3xl font-black text-white neon-text sm:text-5xl md:mt-0">VYBER VZHLED</h2>
+        <div className="mb-4 mt-4 flex w-full max-w-3xl items-center justify-between md:mt-0">
+            <h2 className="text-3xl font-black text-white neon-text sm:text-5xl">VZHLEDY</h2>
+            <span className="coin-chip text-sm sm:text-base">◈ {progress.coins}</span>
+        </div>
 
         <div className="w-full max-w-3xl rounded-xl border border-white/10 glassmorphism">
             <div className="h-64 w-full sm:h-80">
@@ -53,15 +57,24 @@ export const SkinsScreen: React.FC<SkinsScreenProps> = ({ skins, selectedSkin, o
             <div className="grid grid-cols-1 gap-3 border-t border-white/10 p-4 sm:grid-cols-3">
                 {skins.map(skin => {
                     const isSelected = skin.id === selectedSkin.id;
+                    const isUnlocked = progress.unlockedSkinIds.includes(skin.id);
+                    const canAfford = progress.coins >= skin.unlockCost;
                     return (
                         <button
                             key={skin.id}
                             type="button"
                             aria-pressed={isSelected}
-                            onClick={() => onSelectSkin(skin)}
-                            className={`flex min-h-16 items-center justify-between gap-3 rounded-lg border-2 p-3 text-left transition-colors focus:outline-none focus:ring-2 focus:ring-cyan-300 ${isSelected ? 'border-fuchsia-500 bg-fuchsia-500/10 text-fuchsia-300' : 'border-white/10 text-white hover:border-gray-500'}`}
+                            disabled={!isUnlocked && !canAfford}
+                            onClick={() => onSkinAction(skin)}
+                            className={`flex min-h-24 items-center justify-between gap-3 rounded-lg border-2 p-3 text-left transition-colors focus:outline-none focus:ring-2 focus:ring-cyan-300 disabled:cursor-not-allowed disabled:opacity-45 ${isSelected ? 'border-fuchsia-500 bg-fuchsia-500/10 text-fuchsia-300' : 'border-white/10 text-white hover:border-gray-500'}`}
                         >
-                            <span className="font-bold">{skin.name}</span>
+                            <span className="min-w-0">
+                                <strong className="block font-bold">{skin.name}</strong>
+                                <small className="mt-1 block text-[10px] leading-snug text-gray-400">{skin.description}</small>
+                                <b className={`mt-2 block text-[10px] tracking-wider ${isUnlocked ? 'text-cyan-300' : canAfford ? 'text-yellow-300' : 'text-gray-500'}`}>
+                                    {isSelected ? 'VYBRÁNO' : isUnlocked ? 'VYBRAT' : `ODEMKNOUT · ${skin.unlockCost} ◈`}
+                                </b>
+                            </span>
                             <span className="flex shrink-0 gap-1" aria-hidden="true">
                                 {Object.values(skin.colors).map(color => (
                                     <span key={color} className="h-5 w-5 rounded-full border border-white/30" style={{ backgroundColor: color }} />

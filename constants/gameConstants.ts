@@ -3,6 +3,7 @@ import { GameObjectType } from '../types';
 export const INITIAL_GAME_SPEED = 15;
 export const MAX_GAME_SPEED = 50;
 export const SPEED_INCREASE_RATE = 0.3; // units per second
+export const LANE_CHANGE_SPEED = 25; // world units per second
 
 export const INITIAL_HEALTH = 3;
 export const MAX_HEALTH = 5;
@@ -26,6 +27,7 @@ export const OBJECT_DEFINITIONS: Record<GameObjectType, { width: number, height:
     [GameObjectType.Policajt]: { width: 1.2, height: 2.2, depth: 0.8 },
     [GameObjectType.Auto]: { width: 2.5, height: 1.2, depth: 5 },
     [GameObjectType.Barikada]: { width: 2.8, height: 1.2, depth: 0.8 },
+    [GameObjectType.Leseni]: { width: 3.4, height: 2.8, depth: 1.1 },
 };
 
 export const POWERUP_DURATION = 5; // seconds
@@ -39,3 +41,9 @@ export const LANE_WIDTH = 4;
 export const FIXED_TIMESTEP = 1 / 60;
 export const MAX_FRAME_DELTA = 0.05;
 export const MAX_CATCH_UP_STEPS = 3;
+
+export const COUNTDOWN_STEP_MS = 720;
+export const GAME_OVER_DELAY_MS = 1100;
+export const COMBO_DURATION = 3.5;
+export const MAX_COMBO_MULTIPLIER = 5;
+export const NEAR_MISS_DISTANCE = 3.35;

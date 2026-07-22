@@ -1,4 +1,5 @@
 import React from 'react';
+import { DailyChallenge, PlayerProgress } from '../types';
 import { Button } from './Button';
 
 interface MainMenuProps {
@@ -7,43 +8,75 @@ interface MainMenuProps {
     onLeaderboard: () => void;
     onSkins: () => void;
     highScore: number;
+    progress: PlayerProgress;
+    dailyChallenge: DailyChallenge;
 }
 
-export const MainMenu: React.FC<MainMenuProps> = ({ onStart, onSettings, onLeaderboard, onSkins, highScore }) => {
-    return (
-        <div className="safe-screen w-full h-full overflow-y-auto flex flex-col items-center justify-start md:justify-center bg-black bg-opacity-80 screen-enter">
-            <h1 className="mt-4 md:mt-0 text-5xl sm:text-7xl md:text-9xl text-center font-black mb-3 text-white neon-text uppercase tracking-wider md:tracking-widest">
-                Pedro Run
-            </h1>
-            <p className="text-base sm:text-xl md:text-2xl text-center text-cyan-300 neon-blue-text mb-6 md:mb-10">
-                Kyberpunkové dobrodružství v Praze
-            </p>
-            <div className="flex flex-col gap-4 w-full max-w-xs">
-                <Button onClick={onStart}>Hrát</Button>
-                <Button onClick={onSkins} variant="secondary">Vzhledy</Button>
-                <Button onClick={onLeaderboard} variant="secondary">Žebříček</Button>
-                <Button onClick={onSettings} variant="secondary">Nastavení</Button>
-            </div>
-             <p className="mt-6 text-lg text-gray-400">Rekord: <span className="font-bold text-white">{highScore}</span></p>
+export const MainMenu: React.FC<MainMenuProps> = ({
+    onStart,
+    onSettings,
+    onLeaderboard,
+    onSkins,
+    highScore,
+    progress,
+    dailyChallenge,
+}) => (
+    <main className="main-menu safe-screen screen-enter">
+        <div className="main-menu__sky" aria-hidden="true">
+            <div className="main-menu__moon" />
+            <div className="main-menu__city main-menu__city--back" />
+            <div className="main-menu__city main-menu__city--front" />
+            <div className="main-menu__road" />
+        </div>
 
-            <div className="mt-6 text-center text-gray-400 text-xs sm:text-sm glassmorphism p-4 rounded-lg w-full max-w-md">
-                <h3 className="font-bold text-white mb-2 uppercase">Ovládání</h3>
-                <div className="flex flex-col sm:flex-row gap-3 sm:gap-6 justify-around">
+        <header className="main-menu__topbar">
+            <div className="brand-chip"><span>FP</span><strong>FOFR PEDRO</strong></div>
+            <div className="main-menu__currencies">
+                <span>REKORD <strong>{highScore.toLocaleString('cs-CZ')}</strong></span>
+                <span className="coin-chip">◈ {progress.coins}</span>
+            </div>
+        </header>
+
+        <section className="main-menu__content">
+            <div className="main-menu__hero">
+                <span className="main-menu__kicker">NOČNÍ ÚTĚK PRAHOU</span>
+                <h1><span>FOFR</span> PEDRO</h1>
+                <p>Rychlejší. Drsnější. A tentokrát bez výmluv.</p>
+            </div>
+
+            <div className="main-menu__panel">
+                <div className="daily-card">
                     <div>
-                        <p className="font-semibold text-white">Počítač</p>
-                        <p><span className="font-mono text-cyan-300">←</span> / <span className="font-mono text-cyan-300">→</span> : pohyb</p>
-                        <p><span className="font-mono text-cyan-300">↑</span> / <span className="font-mono text-cyan-300">mezerník</span> : salto</p>
-                         <p><span className="font-mono text-cyan-300">↓</span> : skluz</p>
+                        <span>DENNÍ VÝZVA · +{dailyChallenge.reward} ◈</span>
+                        <strong>{dailyChallenge.title}</strong>
+                        <p>{dailyChallenge.description}</p>
                     </div>
-                     <div>
-                        <p className="font-semibold text-white">Mobil</p>
-                        <p>Přejeď doleva/doprava</p>
-                        <p>Přejeď nahoru</p>
-                        <p>Přejeď dolů</p>
-                    </div>
+                    <b className={progress.dailyChallengeClaimed ? 'is-complete' : ''}>
+                        {progress.dailyChallengeClaimed ? 'SPLNĚNO' : 'AKTIVNÍ'}
+                    </b>
+                </div>
+
+                <Button onClick={onStart} className="play-button">
+                    <span>▶</span> HRÁT
+                </Button>
+
+                <div className="main-menu__secondary-actions">
+                    <button type="button" onClick={onSkins}><span>◈</span>Vzhledy</button>
+                    <button type="button" onClick={onLeaderboard}><span>⌁</span>Žebříček</button>
+                    <button type="button" onClick={onSettings}><span>⚙</span>Nastavení</button>
+                </div>
+
+                <div className="control-strip" aria-label="Ovládání hry">
+                    <span><b>← →</b> PRUHY</span>
+                    <span><b>↑</b> SALTO</span>
+                    <span><b>↓</b> SKLUZ</span>
                 </div>
             </div>
-            <p className="mt-4 pb-2 text-[10px] sm:text-xs text-gray-600 text-center">Drsný humor a narážky na návykové látky · 18+</p>
-        </div>
-    );
-};
+        </section>
+
+        <footer className="main-menu__footer">
+            <span>{progress.totalRuns} běhů · {Math.floor(progress.totalDistance / 1000)} km</span>
+            <span>Drsný humor · 18+</span>
+        </footer>
+    </main>
+);

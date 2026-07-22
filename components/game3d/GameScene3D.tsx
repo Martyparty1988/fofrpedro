@@ -13,7 +13,10 @@ interface GameScene3DProps {
     gameState: GameState;
     settings: Settings;
     skin: Skin;
+    quality: SceneQuality;
 }
+
+export type SceneQuality = 'high' | 'balanced' | 'low';
 
 const CAMERA_HEIGHT = 4.45;
 const CAMERA_DISTANCE = 9.5;
@@ -23,7 +26,7 @@ const CAMERA_AIM_RATIO = 0.22;
 const REDUCED_MOTION_FOLLOW_RATIO = 0.06;
 const REDUCED_MOTION_AIM_RATIO = 0.12;
 
-export const GameScene3D: React.FC<GameScene3DProps> = ({ gameState, settings, skin }) => {
+export const GameScene3D: React.FC<GameScene3DProps> = ({ gameState, settings, skin, quality }) => {
     const cameraShake = useRef(0);
     const cameraAimX = useRef(0);
     const lastHealth = useRef(gameState.player.health);
@@ -31,7 +34,7 @@ export const GameScene3D: React.FC<GameScene3DProps> = ({ gameState, settings, s
     const sceneSpeed = gameState.status === 'playing' ? gameState.gameSpeed : 0;
     
     useFrame((state, delta) => {
-        const targetX = gameState.player.lane * 4;
+        const targetX = gameState.player.positionX;
         const positionDamping = 1 - Math.exp(-4.5 * delta);
         const aimDamping = 1 - Math.exp(-6 * delta);
         const followRatio = settings.reducedMotion ? REDUCED_MOTION_FOLLOW_RATIO : CAMERA_FOLLOW_RATIO;
@@ -73,11 +76,11 @@ export const GameScene3D: React.FC<GameScene3DProps> = ({ gameState, settings, s
             <hemisphereLight color="#8fb7d4" groundColor="#08050f" intensity={0.9} />
             <ambientLight intensity={0.08} />
             <directionalLight
-                castShadow
+                castShadow={quality !== 'low'}
                 position={[-14, 24, 10]}
                 intensity={1.75}
                 color="#b8d6ff"
-                shadow-mapSize={[1024, 1024]}
+                shadow-mapSize={quality === 'high' ? [1024, 1024] : [512, 512]}
                 shadow-camera-left={-16}
                 shadow-camera-right={16}
                 shadow-camera-top={18}
@@ -88,7 +91,7 @@ export const GameScene3D: React.FC<GameScene3DProps> = ({ gameState, settings, s
             <spotLight position={[0, 12, 7]} color="#d8ecff" intensity={42} angle={0.48} penumbra={0.85} distance={42} />
             <pointLight position={[-6.8, 5.2, -4]} color="#ff65c3" intensity={24} distance={28} decay={2} />
             <pointLight position={[6.8, 5.2, -18]} color="#70e1f5" intensity={26} distance={30} decay={2} />
-            <pointLight position={[-6.8, 5.2, -36]} color="#70e1f5" intensity={20} distance={26} decay={2} />
+            {quality !== 'low' && <pointLight position={[-6.8, 5.2, -36]} color="#70e1f5" intensity={20} distance={26} decay={2} />}
 
             <fog ref={fogRef} attach="fog" args={['#07101a', 26, 105]} />
 
@@ -103,18 +106,19 @@ export const GameScene3D: React.FC<GameScene3DProps> = ({ gameState, settings, s
                 </mesh>
             </group>
             
-            <Road speed={sceneSpeed} />
-            <Environment speed={sceneSpeed} />
+            <Road speed={sceneSpeed} quality={quality} />
+            <Environment speed={sceneSpeed} quality={quality} />
             <Player3D
                 playerState={gameState.player}
                 skin={skin}
                 powerUps={gameState.activePowerUps}
                 settings={settings}
                 active={gameState.status === 'playing'}
+                crashed={gameState.status === 'gameOver'}
             />
             <GameItems gameObjects={gameState.gameObjects} />
             <EffectsManager effects={gameState.effects} />
-            {!settings.reducedMotion && <Rain speed={sceneSpeed} />}
+            {!settings.reducedMotion && <Rain speed={sceneSpeed} quality={quality} />}
         </>
     );
 };

@@ -1,61 +1,97 @@
 import React, { useState } from 'react';
 import { Button } from './Button';
 import { getRandomQuote } from '../constants/content';
-import { LeaderboardEntry } from '../types';
+import { DailyChallenge, LeaderboardEntry, RunSummary } from '../types';
 
 interface GameOverScreenProps {
-    score: number;
+    summary: RunSummary;
     highScore: number;
     onRestart: () => void;
     onMenu: () => void;
     addLeaderboardEntry: (name: string) => void;
     leaderboard: LeaderboardEntry[];
+    dailyChallenge: DailyChallenge;
+    dailyCompleted: boolean;
 }
 
-export const GameOverScreen: React.FC<GameOverScreenProps> = ({ score, highScore, onRestart, onMenu, addLeaderboardEntry, leaderboard }) => {
+export const GameOverScreen: React.FC<GameOverScreenProps> = ({
+    summary,
+    highScore,
+    onRestart,
+    onMenu,
+    addLeaderboardEntry,
+    leaderboard,
+    dailyChallenge,
+    dailyCompleted,
+}) => {
     const [name, setName] = useState('');
     const [submitted, setSubmitted] = useState(false);
+    const [shared, setShared] = useState(false);
     const [quote] = useState(getRandomQuote);
+    const isHighScore = summary.score > 0 && (leaderboard.length < 5 || summary.score > leaderboard[leaderboard.length - 1].score);
 
-    const isHighScore = score > 0 && (leaderboard.length < 5 || score > leaderboard[leaderboard.length - 1].score);
+    const handleSubmit = (event: React.FormEvent) => {
+        event.preventDefault();
+        if (!name.trim()) return;
+        addLeaderboardEntry(name.trim());
+        setSubmitted(true);
+    };
 
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (name.trim()) {
-            addLeaderboardEntry(name.trim());
-            setSubmitted(true);
+    const handleShare = async () => {
+        const text = `Fofr Pedro: ${summary.score.toLocaleString('cs-CZ')} bodů, kombo ${summary.bestCombo} a ${Math.floor(summary.distance)} metrů. Překonáš mě?`;
+        try {
+            if (navigator.share) await navigator.share({ title: 'Fofr Pedro', text, url: window.location.origin });
+            else await navigator.clipboard.writeText(`${text} ${window.location.origin}`);
+            setShared(true);
+        } catch {
+            // Cancelling a native share sheet should not interrupt the results screen.
         }
     };
-    
-    return (
-        <div className="safe-screen absolute inset-0 z-20 overflow-y-auto flex flex-col items-center justify-start md:justify-center glassmorphism screen-enter">
-            <h2 className="mt-4 md:mt-0 text-4xl sm:text-6xl md:text-8xl text-center font-black text-red-500 neon-text mb-4">KONEC HRY</h2>
-            <p className="text-sm sm:text-lg text-cyan-300 neon-blue-text mb-5 md:mb-8 text-center italic">"{quote}"</p>
 
-            <div className="text-center mb-8">
-                <p className="text-lg sm:text-xl text-gray-400">Tvoje skóre</p>
-                <p className="text-5xl sm:text-7xl font-bold text-white">{score}</p>
-                <p className="text-md text-gray-400 mt-3">Rekord: <span className="font-bold text-white">{highScore}</span></p>
+    return (
+        <div className="results-screen safe-screen screen-enter">
+            <div className="results-screen__header">
+                <span>BĚH UKONČEN</span>
+                <h2>{summary.score.toLocaleString('cs-CZ')}</h2>
+                <p>REKORD {highScore.toLocaleString('cs-CZ')}</p>
+            </div>
+
+            <blockquote>„{quote}“</blockquote>
+
+            <div className="results-grid">
+                <div><span>VZDÁLENOST</span><strong>{Math.floor(summary.distance)} m</strong></div>
+                <div><span>NEJLEPŠÍ KOMBO</span><strong>{summary.bestCombo}</strong></div>
+                <div><span>PŘEKÁŽKY</span><strong>{summary.avoided + summary.destroyed}</strong></div>
+                <div><span>TĚSNÉ ÚHYBY</span><strong>{summary.nearMisses}</strong></div>
+            </div>
+
+            <div className={`daily-result ${dailyCompleted ? 'is-complete' : ''}`}>
+                <span>{dailyCompleted ? 'DENNÍ VÝZVA SPLNĚNA' : dailyChallenge.title}</span>
+                <strong>+{summary.coinsEarned} ◈</strong>
+                <small>{dailyCompleted ? `Bonus za výzvu je započítaný.` : dailyChallenge.description}</small>
             </div>
 
             {isHighScore && !submitted && (
-                <form onSubmit={handleSubmit} className="flex flex-col items-center gap-4 mb-8 w-full max-w-xs">
-                     <p className="text-lg text-center text-yellow-400">Nový rekord! Zadej své jméno:</p>
-                    <input 
-                        type="text"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        maxLength={10}
-                        aria-label="Jméno do žebříčku"
-                        className="bg-gray-900 text-white text-center w-full p-2 rounded-md border border-gray-600 focus:outline-none focus:ring-2 focus:ring-fuchsia-500"
-                        placeholder="PEDRO"
-                    />
-                    <Button type="submit">Uložit skóre</Button>
+                <form onSubmit={handleSubmit} className="result-name-form">
+                    <label htmlFor="leaderboard-name">Nový zápis do žebříčku</label>
+                    <div>
+                        <input
+                            id="leaderboard-name"
+                            type="text"
+                            value={name}
+                            onChange={event => setName(event.target.value)}
+                            maxLength={10}
+                            placeholder="PEDRO"
+                            autoComplete="nickname"
+                        />
+                        <button type="submit">ULOŽIT</button>
+                    </div>
                 </form>
             )}
 
-            <div className="flex flex-col gap-4 w-full max-w-xs">
+            <div className="results-screen__actions">
                 <Button onClick={onRestart}>Hrát znovu</Button>
+                <Button onClick={handleShare} variant="secondary">{shared ? 'Odkaz zkopírován' : 'Sdílet výsledek'}</Button>
                 <Button onClick={onMenu} variant="secondary">Hlavní menu</Button>
             </div>
         </div>

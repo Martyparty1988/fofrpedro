@@ -33,9 +33,9 @@ interface RigBone {
     rest: THREE.Quaternion;
 }
 
-const SOURCE_COMMIT = '408db807d2d77fd2c96eb2fbd6517a7fa8106070';
-const PRIMARY_MODEL_URL = `https://raw.githubusercontent.com/Mesh2Motion/mesh2motion-app/${SOURCE_COMMIT}/static/models-variation/human-sophia.glb`;
+const PRIMARY_MODEL_URL = '/models/runner-human-sophia.glb';
 const LOCAL_FALLBACK_URL = '/models/runner-human-base.glb';
+const ANIMATION_URL = '/models/runner-animations.glb';
 const TARGET_MODEL_HEIGHT = 3.05;
 
 const BONE_ALIASES: Record<RunnerBoneName, string[]> = {
@@ -64,10 +64,27 @@ const loadModel = (url: string) => new Promise<GLTF>((resolve, reject) => {
 });
 
 let runnerAssetPromise: Promise<GLTF> | null = null;
+let runnerAnimationsPromise: Promise<GLTF> | null = null;
 
 const loadRunnerAsset = () => {
     runnerAssetPromise ??= loadModel(PRIMARY_MODEL_URL).catch(() => loadModel(LOCAL_FALLBACK_URL));
     return runnerAssetPromise;
+};
+
+const loadRunnerAnimations = () => {
+    runnerAnimationsPromise ??= loadModel(ANIMATION_URL);
+    return runnerAnimationsPromise;
+};
+
+const LOOPING_MOTIONS = new Set<RunnerMotion>(['idle', 'run']);
+const MOTION_SPEED: Record<RunnerMotion, number> = {
+    idle: 1,
+    run: 1.18,
+    jump: 2.5,
+    flip: 5,
+    slide: 4,
+    hit: 1.25,
+    death: 2,
 };
 
 const prepareModel = (source: THREE.Group, colors: Skin['colors']) => {
@@ -118,11 +135,15 @@ export const RealisticRunner: React.FC<RealisticRunnerProps> = ({
     ...groupProps
 }) => {
     const [asset, setAsset] = useState<GLTF | null>(null);
+    const [animationAsset, setAnimationAsset] = useState<GLTF | null>(null);
     const modelRoot = useRef<THREE.Group>(null!);
     const bones = useRef<Partial<Record<RunnerBoneName, RigBone>>>({});
     const scratchEuler = useMemo(() => new THREE.Euler(), []);
     const scratchDelta = useMemo(() => new THREE.Quaternion(), []);
     const scratchTarget = useMemo(() => new THREE.Quaternion(), []);
+    const mixerRef = useRef<THREE.AnimationMixer | null>(null);
+    const actionsRef = useRef<Partial<Record<RunnerMotion, THREE.AnimationAction>>>({});
+    const activeActionRef = useRef<THREE.AnimationAction | null>(null);
 
     useEffect(() => {
         let active = true;
@@ -132,6 +153,13 @@ export const RealisticRunner: React.FC<RealisticRunnerProps> = ({
             })
             .catch(() => {
                 // The procedural model remains visible when both asset sources fail.
+            });
+        loadRunnerAnimations()
+            .then(loaded => {
+                if (active) setAnimationAsset(loaded);
+            })
+            .catch(() => {
+                // Procedural bone poses remain available when animation clips cannot load.
             });
         return () => {
             active = false;
@@ -168,8 +196,50 @@ export const RealisticRunner: React.FC<RealisticRunnerProps> = ({
         };
     }, [modelScene]);
 
+    useEffect(() => {
+        if (!modelScene || !animationAsset?.animations.length) return;
+        const mixer = new THREE.AnimationMixer(modelScene);
+        const actions: Partial<Record<RunnerMotion, THREE.AnimationAction>> = {};
+        animationAsset.animations.forEach(clip => {
+            const name = clip.name as RunnerMotion;
+            if (!(name in MOTION_SPEED)) return;
+            const action = mixer.clipAction(clip);
+            const looping = LOOPING_MOTIONS.has(name);
+            action.enabled = true;
+            action.clampWhenFinished = !looping;
+            action.setLoop(looping ? THREE.LoopRepeat : THREE.LoopOnce, looping ? Infinity : 1);
+            actions[name] = action;
+        });
+        mixerRef.current = mixer;
+        actionsRef.current = actions;
+
+        return () => {
+            mixer.stopAllAction();
+            mixer.uncacheRoot(modelScene);
+            mixerRef.current = null;
+            actionsRef.current = {};
+            activeActionRef.current = null;
+        };
+    }, [animationAsset, modelScene]);
+
+    useEffect(() => {
+        const nextAction = actionsRef.current[motion];
+        if (!nextAction) return;
+        const previous = activeActionRef.current;
+        nextAction.reset();
+        nextAction.setEffectiveTimeScale(MOTION_SPEED[motion]);
+        nextAction.setEffectiveWeight(1);
+        nextAction.fadeIn(0.14).play();
+        if (previous && previous !== nextAction) previous.fadeOut(0.16);
+        activeActionRef.current = nextAction;
+    }, [animationAsset, modelScene, motion]);
+
     useFrame(({ clock }, delta) => {
         if (!modelScene || !modelRoot.current) return;
+        if (mixerRef.current && activeActionRef.current) {
+            mixerRef.current.update(delta);
+            return;
+        }
         const pose = createRunnerPose(clock.elapsedTime, motion, reducedMotion);
         const damping = 1 - Math.exp(-14 * delta);
 
